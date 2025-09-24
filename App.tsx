@@ -29,22 +29,33 @@ const WhatsAppConfirmIcon = () => <svg xmlns="http://www.w3.org/2000/svg" classN
 
 // --- Componente Header ---
 const Header: React.FC<{ onAdminClick: () => void; logoUrl: string }> = ({ onAdminClick, logoUrl }) => {
+    
+    const NavButton: React.FC<{ children: React.ReactNode; onClick: () => void }> = ({ children, onClick }) => (
+        <button onClick={onClick} className="relative font-anton tracking-widest text-gray-400 hover:text-white transition-colors duration-300 after:content-[''] after:absolute after:left-1/2 after:bottom-[-5px] after:h-[2px] after:w-0 after:bg-red-600 after:transition-all after:duration-300 hover:after:w-full hover:after:left-0">
+            {children}
+        </button>
+    );
+
     return (
-      <header className="bg-gray-900 text-white shadow-lg sticky top-0 z-50" style={{backgroundColor: '#111827'}}>
-        <div className="container mx-auto px-6 py-3 flex justify-between items-center">
+      <header className="bg-black text-white shadow-md shadow-black/30 sticky top-0 z-50 border-b border-gray-800">
+        <div className="container mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center">
-             <img src={logoUrl} alt="Logo da Barbearia" className="h-12 w-auto" />
+             <img src={logoUrl} alt="Logo da Barbearia" className="h-14 w-auto cursor-pointer" onClick={() => window.scrollTo({top: 0, behavior: 'smooth'})} />
           </div>
-          <nav className="hidden md:flex items-center space-x-6">
-            <button onClick={() => scrollToSection('promocoes')} className="bg-transparent border-none p-0 cursor-pointer hover:text-red-500 transition duration-300">Promoções</button>
-            <button onClick={() => scrollToSection('galeria')} className="bg-transparent border-none p-0 cursor-pointer hover:text-red-500 transition duration-300">Galeria</button>
-            <button onClick={() => scrollToSection('como-funciona')} className="bg-transparent border-none p-0 cursor-pointer hover:text-red-500 transition duration-300">Como Funciona</button>
-            <button onClick={() => scrollToSection('localizacao')} className="bg-transparent border-none p-0 cursor-pointer hover:text-red-500 transition duration-300">Localização</button>
-            <button onClick={() => scrollToSection('agendamento')} className="bg-red-600 px-4 py-2 rounded-md hover:bg-red-700 transition duration-300 text-center">AGENDAR<br/>AGORA</button>
+          <nav className="hidden md:flex items-center space-x-10">
+            <NavButton onClick={() => scrollToSection('promocoes')}>Promoções</NavButton>
+            <NavButton onClick={() => scrollToSection('galeria')}>Galeria</NavButton>
+            <NavButton onClick={() => scrollToSection('como-funciona')}>Como Funciona</NavButton>
+            <NavButton onClick={() => scrollToSection('localizacao')}>Localização</NavButton>
           </nav>
-          <button onClick={onAdminClick} className="text-sm border border-red-600 px-3 py-2 rounded-md hover:bg-red-600 transition duration-300 text-center">
-            Área do<br/>Barbeiro
-          </button>
+          <div className="flex items-center space-x-4">
+            <button onClick={() => scrollToSection('agendamento')} className="font-anton tracking-widest bg-red-600 px-6 py-3 rounded-sm hover:bg-red-700 transition-all duration-300 transform hover:scale-105">
+                AGENDAR AGORA
+            </button>
+            <button onClick={onAdminClick} className="font-semibold text-sm border border-gray-600 px-3 py-2 rounded-sm hover:bg-white hover:text-black transition-colors duration-300 text-center">
+                 Área do<br/>Barbeiro
+            </button>
+          </div>
         </div>
       </header>
     );
