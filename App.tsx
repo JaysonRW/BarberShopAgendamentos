@@ -458,6 +458,14 @@ const AdminPanel: React.FC<{
     const appointment = appointments.find(app => app.id === id);
     if (!appointment) return;
 
+    // Remove o horário da disponibilidade
+    setAvailability(prev => {
+        const newAvailability = { ...prev };
+        const daySlots = newAvailability[appointment.date] || [];
+        newAvailability[appointment.date] = daySlots.filter(t => t !== appointment.time);
+        return newAvailability;
+    });
+
     const formattedDate = new Date(appointment.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
     const clientMessage = `Olá, ${appointment.clientName}! Seu agendamento para *${appointment.service.name}* no dia *${formattedDate}* às *${appointment.time}* está *CONFIRMADO*! Esperamos por você.`;
     const clientUrl = `https://wa.me/${appointment.clientWhatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(clientMessage)}`;
@@ -470,6 +478,16 @@ const AdminPanel: React.FC<{
   const handleCancelAppointment = (id: number) => {
     const appointment = appointments.find(app => app.id === id);
     if (!appointment) return;
+
+    // Devolve o horário para a disponibilidade
+    setAvailability(prev => {
+        const newAvailability = { ...prev };
+        const daySlots = newAvailability[appointment.date] || [];
+        if (!daySlots.includes(appointment.time)) {
+            newAvailability[appointment.date] = [...daySlots, appointment.time].sort((a, b) => a.localeCompare(b));
+        }
+        return newAvailability;
+    });
 
     const formattedDate = new Date(appointment.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
     const clientMessage = `Olá, ${appointment.clientName}. Informamos que seu agendamento para *${appointment.service.name}* no dia *${formattedDate}* às *${appointment.time}* foi *CANCELADO*. Por favor, entre em contato para mais detalhes ou para reagendar.`;
