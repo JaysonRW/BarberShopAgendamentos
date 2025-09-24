@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useMemo, ChangeEvent } from 'react';
 import type { Promotion, GalleryImage, Service, Appointment } from './types';
 import { BARBER_WHATSAPP_NUMBER, PROMOTIONS_DATA, GALLERY_IMAGES_DATA, TIME_SLOTS, SERVICES_DATA } from './constants';
@@ -139,7 +140,11 @@ const HowItWorks = () => (
   );
 
 // --- Componente Agendamento ---
-const BookingForm: React.FC<{ services: Service[]; setAppointments: React.Dispatch<React.SetStateAction<Appointment[]>> }> = ({ services, setAppointments }) => {
+const BookingForm: React.FC<{ 
+    services: Service[]; 
+    setAppointments: React.Dispatch<React.SetStateAction<Appointment[]>>;
+    availability: Record<string, string[]>;
+}> = ({ services, setAppointments, availability }) => {
     const [selectedDate, setSelectedDate] = useState<string>('');
     const [selectedTime, setSelectedTime] = useState<string>('');
     const [selectedServiceId, setSelectedServiceId] = useState<number | null>(null);
@@ -153,15 +158,24 @@ const BookingForm: React.FC<{ services: Service[]; setAppointments: React.Dispat
     const selectedService = useMemo(() => services.find(s => s.id === selectedServiceId), [services, selectedServiceId]);
   
     const availableDates = useMemo(() => {
-        const dates = [];
         const today = new Date();
-        for (let i = 0; i < 7; i++) {
-            const date = new Date(today);
-            date.setDate(today.getDate() + i);
-            dates.push(date.toISOString().split('T')[0]);
-        }
-        return dates;
-    }, []);
+        today.setHours(0, 0, 0, 0);
+        const todayString = today.toISOString().split('T')[0];
+        
+        return Object.keys(availability)
+            .filter(date => date >= todayString && availability[date] && availability[date].length > 0)
+            .sort();
+    }, [availability]);
+
+    const availableTimesForSelectedDate = useMemo(() => {
+        if (!selectedDate) return [];
+        return availability[selectedDate] || [];
+    }, [selectedDate, availability]);
+
+    const handleDateSelect = (date: string) => {
+        setSelectedDate(date);
+        setSelectedTime(''); // Reset time when date changes
+    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -241,7 +255,7 @@ const BookingForm: React.FC<{ services: Service[]; setAppointments: React.Dispat
                             <label className="block text-gray-800 font-bold mb-3 flex items-center"><CalendarIcon /> Data</label>
                             <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
                                 {availableDates.map(date => (
-                                    <button key={date} type="button" onClick={() => setSelectedDate(date)} className={`p-3 border rounded-lg text-center transition duration-300 ${selectedDate === date ? 'bg-red-600 text-white shadow-md' : 'bg-gray-100 text-gray-700 hover:bg-red-200'}`}>
+                                    <button key={date} type="button" onClick={() => handleDateSelect(date)} className={`p-3 border rounded-lg text-center transition duration-300 ${selectedDate === date ? 'bg-red-600 text-white shadow-md' : 'bg-gray-100 text-gray-700 hover:bg-red-200'}`}>
                                         {new Date(date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', timeZone: 'UTC'})}
                                     </button>
                                 ))}
@@ -252,12 +266,16 @@ const BookingForm: React.FC<{ services: Service[]; setAppointments: React.Dispat
                              <div>
                                 <label className="block text-gray-800 font-bold mb-3 flex items-center"><ClockIcon /> Horário</label>
                                 <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
-                                    {TIME_SLOTS.map(time => (
-                                        <button key={time} type="button" onClick={() => setSelectedTime(time)} className={`p-3 border rounded-lg transition duration-300 ${selectedTime === time ? 'bg-red-600 text-white shadow-md' : 'bg-gray-100 text-gray-700 hover:bg-red-200'}`}>
-                                            {time}
-                                        </button>
-                                    ))}
+                                    {TIME_SLOTS.map(time => {
+                                        const isAvailable = availableTimesForSelectedDate.includes(time);
+                                        return (
+                                            <button key={time} type="button" onClick={() => isAvailable && setSelectedTime(time)} disabled={!isAvailable} className={`p-3 border rounded-lg transition duration-300 ${selectedTime === time ? 'bg-red-600 text-white shadow-md' : isAvailable ? 'bg-gray-100 text-gray-700 hover:bg-red-200' : 'bg-gray-200 text-gray-400 line-through cursor-not-allowed'}`}>
+                                                {time}
+                                            </button>
+                                        );
+                                    })}
                                 </div>
+                                {availableTimesForSelectedDate.length === 0 && <p className="text-center text-gray-500 mt-2">Nenhum horário disponível para esta data.</p>}
                             </div>
                         )}
 
@@ -341,8 +359,10 @@ const AdminPanel: React.FC<{
   setLocation: React.Dispatch<React.SetStateAction<string>>;
   appointments: Appointment[];
   setAppointments: React.Dispatch<React.SetStateAction<Appointment[]>>;
+  availability: Record<string, string[]>;
+  setAvailability: React.Dispatch<React.SetStateAction<Record<string, string[]>>>;
   onClientClick: () => void;
-}> = ({ promotions, setPromotions, images, setImages, services, setServices, logoUrl, setLogoUrl, location, setLocation, appointments, setAppointments, onClientClick }) => {
+}> = ({ promotions, setPromotions, images, setImages, services, setServices, logoUrl, setLogoUrl, location, setLocation, appointments, setAppointments, availability, setAvailability, onClientClick }) => {
     
   const [promoTitle, setPromoTitle] = useState('');
   const [promoDesc, setPromoDesc] = useState('');
@@ -353,6 +373,20 @@ const AdminPanel: React.FC<{
   const [logoPreview, setLogoPreview] = useState(logoUrl);
   const [currentLocation, setCurrentLocation] = useState(location);
 
+  const availabilityDates = useMemo(() => Object.keys(availability).sort(), [availability]);
+
+  const handleToggleAvailability = (date: string, time: string) => {
+    setAvailability(prev => {
+        const newAvailability = { ...prev };
+        const daySlots = newAvailability[date] || [];
+        if (daySlots.includes(time)) {
+            newAvailability[date] = daySlots.filter(t => t !== time);
+        } else {
+            newAvailability[date] = [...daySlots, time].sort((a, b) => a.localeCompare(b));
+        }
+        return newAvailability;
+    });
+  };
 
   const handleLogoFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -505,6 +539,39 @@ const AdminPanel: React.FC<{
              )}
           </div>
           
+          {/* Gerenciar Disponibilidade */}
+          <div className="bg-white p-6 sm:p-8 rounded-xl shadow-xl">
+            <h3 className="text-3xl font-anton text-gray-800 border-b-2 border-red-600 pb-4 mb-6">Gerenciar Disponibilidade</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {availabilityDates.map(date => (
+                    <div key={date} className="bg-gray-50 rounded-lg p-4 shadow-sm">
+                        <h4 className="font-bold text-center text-gray-800 mb-3 pb-2 border-b">
+                            {new Date(date).toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'short', timeZone: 'UTC' })}
+                        </h4>
+                        <div className="grid grid-cols-3 gap-2">
+                            {TIME_SLOTS.map(time => {
+                                const isAvailable = availability[date]?.includes(time);
+                                return (
+                                    <button 
+                                        key={time}
+                                        onClick={() => handleToggleAvailability(date, time)}
+                                        className={`px-2 py-2 text-sm rounded-md transition-colors duration-200 font-semibold ${
+                                            isAvailable 
+                                            ? 'bg-green-200 text-green-800 hover:bg-green-300' 
+                                            : 'bg-red-200 text-red-800 hover:bg-red-300'
+                                        }`}
+                                    >
+                                        {time}
+                                    </button>
+                                )
+                            })}
+                        </div>
+                    </div>
+                ))}
+            </div>
+          </div>
+
+
           {/* Gerenciar Logo */}
           <div className="bg-white p-6 sm:p-8 rounded-xl shadow-xl">
             <h3 className="text-3xl font-anton text-gray-800 border-b-2 border-red-600 pb-4 mb-6">Gerenciar Logo</h3>
@@ -631,6 +698,17 @@ const App: React.FC = () => {
     const [logoUrl, setLogoUrl] = useState<string>('https://via.placeholder.com/200x80.png?text=SUA+LOGO');
     const [location, setLocation] = useState<string>('Av. Principal, 123, Centro, Sua Cidade - SC, 88000-000');
     const [appointments, setAppointments] = useState<Appointment[]>([]);
+    const [availability, setAvailability] = useState<Record<string, string[]>>(() => {
+        const initial: Record<string, string[]> = {};
+        const today = new Date();
+        for (let i = 0; i < 14; i++) {
+            const date = new Date(today);
+            date.setDate(today.getDate() + i);
+            const dateString = date.toISOString().split('T')[0];
+            initial[dateString] = [...TIME_SLOTS];
+        }
+        return initial;
+    });
 
 
     const toggleView = useCallback(() => {
@@ -652,6 +730,8 @@ const App: React.FC = () => {
                 setLocation={setLocation}
                 appointments={appointments}
                 setAppointments={setAppointments}
+                availability={availability}
+                setAvailability={setAvailability}
                 onClientClick={toggleView}
             />
         );
@@ -665,7 +745,11 @@ const App: React.FC = () => {
                 <Promotions promotions={promotions} />
                 <Gallery images={galleryImages} />
                 <HowItWorks />
-                <BookingForm services={services} setAppointments={setAppointments} />
+                <BookingForm 
+                    services={services} 
+                    setAppointments={setAppointments} 
+                    availability={availability} 
+                />
                 <Location address={location} />
             </main>
             <Footer />
