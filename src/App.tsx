@@ -1,40 +1,6 @@
-import React, { useState, useCallback, useMemo, ChangeEvent, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, ChangeEvent } from 'react';
 import type { Promotion, GalleryImage, Service, Appointment } from './types';
 import { BARBER_WHATSAPP_NUMBER, PROMOTIONS_DATA, GALLERY_IMAGES_DATA, TIME_SLOTS, SERVICES_DATA } from './constants';
-import { auth } from './firebaseConfig';
-// FIX: Removed modular imports from 'firebase/auth' that were causing errors.
-// Switched to compat imports to align with the v8 API style.
-import firebase from 'firebase/compat/app';
-import 'firebase/compat/auth';
-
-// --- Helper Hook para persistência no localStorage (simulando um banco de dados) ---
-function useLocalStorage<T>(key: string, initialValue: T): [T, React.Dispatch<React.SetStateAction<T>>] {
-  const [storedValue, setStoredValue] = useState<T>(() => {
-    try {
-      if (typeof window === 'undefined') return initialValue;
-      const item = window.localStorage.getItem(key);
-      return item ? JSON.parse(item) : initialValue;
-    } catch (error) {
-      console.error(`Erro ao ler do localStorage [${key}]:`, error);
-      return initialValue;
-    }
-  });
-
-  const setValue: React.Dispatch<React.SetStateAction<T>> = (value) => {
-    try {
-      const valueToStore = value instanceof Function ? value(storedValue) : value;
-      setStoredValue(valueToStore);
-      if (typeof window !== 'undefined') {
-        window.localStorage.setItem(key, JSON.stringify(valueToStore));
-      }
-    } catch (error) {
-      console.error(`Erro ao salvar no localStorage [${key}]:`, error);
-    }
-  };
-
-  return [storedValue, setValue];
-}
-
 
 // --- Helper para rolagem suave ---
 const scrollToSection = (sectionId: string) => {
@@ -53,95 +19,31 @@ const CreditCardIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="
 const TrashIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" /></svg>;
 const UploadIcon = () => <svg className="w-8 h-8" fill="currentColor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M16.88 9.1A4 4 0 0 1 16 17H5a5 5 0 0 1-1-9.9V7a3 3 0 0 1 4.52-2.59A4.98 4.98 0 0 1 17 8c0 .38-.04.74-.12 1.1zM11 11h3l-4 4-4-4h3v-4h2v4z" /></svg>;
 const MapPinIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 20l-4.95-5.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" /></svg>;
-const LogoutIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
 
 // --- Ícones para 'Como Funciona' ---
 const CalendarDaysIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-red-600 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>;
 const PencilSquareIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-red-600 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>;
 const WhatsAppConfirmIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-red-600 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>;
-const LoadingSpinner = () => (<div className="flex items-center justify-center h-screen bg-gray-900"><div className="w-16 h-16 border-4 border-dashed rounded-full animate-spin border-red-600"></div></div>);
-
-// --- Componente Login ---
-const LoginModal: React.FC<{ onLoginSuccess: () => void; onCancel: () => void }> = ({ onLoginSuccess, onCancel }) => {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [error, setError] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
-
-    const handleLogin = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsLoading(true);
-        setError('');
-        try {
-            // FIX: Updated to use the v8 compat API style for signInWithEmailAndPassword.
-            await auth.signInWithEmailAndPassword(email, password);
-            onLoginSuccess();
-        } catch (err: any) {
-            if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
-                setError('E-mail ou senha inválidos.');
-            } else {
-                setError('Ocorreu um erro ao fazer login.');
-            }
-            console.error(err);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md relative animate-fade-in-down">
-                <button onClick={onCancel} className="absolute top-3 right-3 text-gray-500 hover:text-gray-800 text-3xl font-bold">&times;</button>
-                <h2 className="text-3xl font-anton text-center mb-6 text-gray-800">Acesso <span className="text-red-600">Restrito</span></h2>
-                <form onSubmit={handleLogin} className="space-y-6">
-                    <div>
-                        <label className="block text-gray-700 font-semibold mb-2" htmlFor="email">E-mail</label>
-                        <input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="email@exemplo.com" className="w-full px-4 py-3 bg-slate-200 text-gray-900 placeholder-gray-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500" required/>
-                    </div>
-                    <div>
-                        <label className="block text-gray-700 font-semibold mb-2" htmlFor="password">Senha</label>
-                        <input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" className="w-full px-4 py-3 bg-slate-200 text-gray-900 placeholder-gray-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500" required/>
-                    </div>
-                    {error && <p className="text-red-500 text-sm text-center">{error}</p>}
-                    <button type="submit" disabled={isLoading} className="w-full bg-red-600 text-white font-bold py-3 px-6 rounded-lg text-lg uppercase hover:bg-red-700 transition duration-300 disabled:bg-gray-400">
-                        {isLoading ? 'Entrando...' : 'Entrar'}
-                    </button>
-                </form>
-            </div>
-        </div>
-    );
-};
 
 
 // --- Componente Header ---
 const Header: React.FC<{ onAdminClick: () => void; logoUrl: string }> = ({ onAdminClick, logoUrl }) => {
-    
-    const NavButton: React.FC<{ children: React.ReactNode; onClick: () => void }> = ({ children, onClick }) => (
-        <button onClick={onClick} className="relative font-anton tracking-widest text-gray-400 hover:text-white transition-colors duration-300 after:content-[''] after:absolute after:left-1/2 after:bottom-[-5px] after:h-[2px] after:w-0 after:bg-red-600 after:transition-all after:duration-300 hover:after:w-full hover:after:left-0">
-            {children}
-        </button>
-    );
-
     return (
-      <header className="bg-black text-white shadow-md shadow-black/30 sticky top-0 z-40 border-b border-gray-800">
-        <div className="container mx-auto px-6 py-4 flex justify-between items-center">
+      <header className="bg-gray-900 text-white shadow-lg sticky top-0 z-50" style={{backgroundColor: '#111827'}}>
+        <div className="container mx-auto px-6 py-3 flex justify-between items-center">
           <div className="flex items-center">
-             <img src={logoUrl} alt="Logo da Barbearia" className="h-14 w-auto cursor-pointer" onClick={() => window.scrollTo({top: 0, behavior: 'smooth'})} />
+             <img src={logoUrl} alt="Logo da Barbearia" className="h-12 w-auto" />
           </div>
-          <nav className="hidden md:flex items-center space-x-10">
-            <NavButton onClick={() => scrollToSection('promocoes')}>Promoções</NavButton>
-            <NavButton onClick={() => scrollToSection('galeria')}>Galeria</NavButton>
-            <NavButton onClick={() => scrollToSection('como-funciona')}>Como Funciona</NavButton>
-            <NavButton onClick={() => scrollToSection('localizacao')}>Localização</NavButton>
+          <nav className="hidden md:flex items-center space-x-6">
+            <button onClick={() => scrollToSection('promocoes')} className="bg-transparent border-none p-0 cursor-pointer hover:text-red-500 transition duration-300">Promoções</button>
+            <button onClick={() => scrollToSection('galeria')} className="bg-transparent border-none p-0 cursor-pointer hover:text-red-500 transition duration-300">Galeria</button>
+            <button onClick={() => scrollToSection('como-funciona')} className="bg-transparent border-none p-0 cursor-pointer hover:text-red-500 transition duration-300">Como Funciona</button>
+            <button onClick={() => scrollToSection('localizacao')} className="bg-transparent border-none p-0 cursor-pointer hover:text-red-500 transition duration-300">Localização</button>
+            <button onClick={() => scrollToSection('agendamento')} className="bg-red-600 px-4 py-2 rounded-md hover:bg-red-700 transition duration-300 text-center">AGENDAR<br/>AGORA</button>
           </nav>
-          <div className="flex items-center space-x-4">
-            <button onClick={() => scrollToSection('agendamento')} className="font-anton tracking-widest bg-red-600 px-6 py-3 rounded-sm hover:bg-red-700 transition-all duration-300 transform hover:scale-105">
-                AGENDAR AGORA
-            </button>
-            <button onClick={onAdminClick} className="font-semibold text-sm border border-gray-600 px-3 py-2 rounded-sm hover:bg-white hover:text-black transition-colors duration-300 text-center">
-                 Área do<br/>Barbeiro
-            </button>
-          </div>
+          <button onClick={onAdminClick} className="text-sm border border-red-600 px-3 py-2 rounded-md hover:bg-red-600 transition duration-300 text-center">
+            Área do<br/>Barbeiro
+          </button>
         </div>
       </header>
     );
@@ -237,11 +139,7 @@ const HowItWorks = () => (
   );
 
 // --- Componente Agendamento ---
-const BookingForm: React.FC<{ 
-    services: Service[]; 
-    setAppointments: React.Dispatch<React.SetStateAction<Appointment[]>>;
-    availability: Record<string, string[]>;
-}> = ({ services, setAppointments, availability }) => {
+const BookingForm: React.FC<{ services: Service[]; setAppointments: React.Dispatch<React.SetStateAction<Appointment[]>> }> = ({ services, setAppointments }) => {
     const [selectedDate, setSelectedDate] = useState<string>('');
     const [selectedTime, setSelectedTime] = useState<string>('');
     const [selectedServiceId, setSelectedServiceId] = useState<number | null>(null);
@@ -255,24 +153,15 @@ const BookingForm: React.FC<{
     const selectedService = useMemo(() => services.find(s => s.id === selectedServiceId), [services, selectedServiceId]);
   
     const availableDates = useMemo(() => {
+        const dates = [];
         const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const todayString = today.toISOString().split('T')[0];
-        
-        return Object.keys(availability)
-            .filter(date => date >= todayString && availability[date] && availability[date].length > 0)
-            .sort();
-    }, [availability]);
-
-    const availableTimesForSelectedDate = useMemo(() => {
-        if (!selectedDate) return [];
-        return availability[selectedDate] || [];
-    }, [selectedDate, availability]);
-
-    const handleDateSelect = (date: string) => {
-        setSelectedDate(date);
-        setSelectedTime(''); // Reset time when date changes
-    };
+        for (let i = 0; i < 7; i++) {
+            const date = new Date(today);
+            date.setDate(today.getDate() + i);
+            dates.push(date.toISOString().split('T')[0]);
+        }
+        return dates;
+    }, []);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -352,7 +241,7 @@ const BookingForm: React.FC<{
                             <label className="block text-gray-800 font-bold mb-3 flex items-center"><CalendarIcon /> Data</label>
                             <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
                                 {availableDates.map(date => (
-                                    <button key={date} type="button" onClick={() => handleDateSelect(date)} className={`p-3 border rounded-lg text-center transition duration-300 ${selectedDate === date ? 'bg-red-600 text-white shadow-md' : 'bg-gray-100 text-gray-700 hover:bg-red-200'}`}>
+                                    <button key={date} type="button" onClick={() => setSelectedDate(date)} className={`p-3 border rounded-lg text-center transition duration-300 ${selectedDate === date ? 'bg-red-600 text-white shadow-md' : 'bg-gray-100 text-gray-700 hover:bg-red-200'}`}>
                                         {new Date(date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', timeZone: 'UTC'})}
                                     </button>
                                 ))}
@@ -363,16 +252,12 @@ const BookingForm: React.FC<{
                              <div>
                                 <label className="block text-gray-800 font-bold mb-3 flex items-center"><ClockIcon /> Horário</label>
                                 <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
-                                    {TIME_SLOTS.map(time => {
-                                        const isAvailable = availableTimesForSelectedDate.includes(time);
-                                        return (
-                                            <button key={time} type="button" onClick={() => isAvailable && setSelectedTime(time)} disabled={!isAvailable} className={`p-3 border rounded-lg transition duration-300 ${selectedTime === time ? 'bg-red-600 text-white shadow-md' : isAvailable ? 'bg-gray-100 text-gray-700 hover:bg-red-200' : 'bg-gray-200 text-gray-400 line-through cursor-not-allowed'}`}>
-                                                {time}
-                                            </button>
-                                        );
-                                    })}
+                                    {TIME_SLOTS.map(time => (
+                                        <button key={time} type="button" onClick={() => setSelectedTime(time)} className={`p-3 border rounded-lg transition duration-300 ${selectedTime === time ? 'bg-red-600 text-white shadow-md' : 'bg-gray-100 text-gray-700 hover:bg-red-200'}`}>
+                                            {time}
+                                        </button>
+                                    ))}
                                 </div>
-                                {availableTimesForSelectedDate.length === 0 && <p className="text-center text-gray-500 mt-2">Nenhum horário disponível para esta data.</p>}
                             </div>
                         )}
 
@@ -442,6 +327,71 @@ const Footer = () => (
   </footer>
 );
 
+// --- [NOVO] Componente Agenda Visual ---
+const AgendaView: React.FC<{ appointments: Appointment[] }> = ({ appointments }) => {
+    
+    const weekDates = useMemo(() => {
+        const today = new Date();
+        return Array.from({ length: 7 }, (_, i) => {
+            const date = new Date(today);
+            date.setDate(today.getDate() + i);
+            return date;
+        });
+    }, []);
+
+    const confirmedAppointmentsMap = useMemo(() => {
+        const map = new Map<string, Appointment>();
+        appointments
+            .filter(app => app.status === 'Confirmado')
+            .forEach(app => {
+                const key = `${app.date}-${app.time}`;
+                map.set(key, app);
+            });
+        return map;
+    }, [appointments]);
+
+    return (
+        <div className="bg-white p-6 sm:p-8 rounded-xl shadow-xl">
+            <h3 className="text-3xl font-anton text-gray-800 border-b-2 border-red-600 pb-4 mb-6">Agenda da Semana</h3>
+            <div className="grid grid-cols-8 gap-1 text-center font-sans">
+                {/* Cabeçalho */}
+                <div className="p-2 font-bold text-gray-700">Hora</div>
+                {weekDates.map(date => (
+                    <div key={date.toISOString()} className="p-2 font-bold text-gray-700 bg-gray-100 rounded-t-lg">
+                        <div className="text-sm">{date.toLocaleDateString('pt-BR', { weekday: 'short' })}</div>
+                        <div className="text-lg">{date.toLocaleDateString('pt-BR', { day: '2-digit' })}</div>
+                    </div>
+                ))}
+
+                {/* Linhas de Horário */}
+                {TIME_SLOTS.map(time => (
+                    <React.Fragment key={time}>
+                        <div className="p-3 font-semibold text-gray-600 bg-gray-100 flex items-center justify-center rounded-l-lg">{time}</div>
+                        {weekDates.map(date => {
+                            const dateString = date.toISOString().split('T')[0];
+                            const key = `${dateString}-${time}`;
+                            const appointment = confirmedAppointmentsMap.get(key);
+
+                            return (
+                                <div
+                                    key={key}
+                                    title={appointment ? `Cliente: ${appointment.clientName}\nServiço: ${appointment.service.name}` : 'Horário disponível'}
+                                    className={`p-2 rounded-lg text-xs flex items-center justify-center transition-all duration-300 h-16
+                                        ${appointment ? 'bg-red-600 text-white font-bold shadow-md' : 'bg-gray-200 hover:bg-green-100'}`
+                                    }
+                                >
+                                    {appointment ? appointment.clientName.split(' ')[0] : ''}
+                                </div>
+                            );
+                        })}
+                    </React.Fragment>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+
 // --- Componente Admin ---
 const AdminPanel: React.FC<{
   promotions: Promotion[];
@@ -456,10 +406,8 @@ const AdminPanel: React.FC<{
   setLocation: React.Dispatch<React.SetStateAction<string>>;
   appointments: Appointment[];
   setAppointments: React.Dispatch<React.SetStateAction<Appointment[]>>;
-  availability: Record<string, string[]>;
-  setAvailability: React.Dispatch<React.SetStateAction<Record<string, string[]>>>;
-  onLogout: () => void;
-}> = ({ promotions, setPromotions, images, setImages, services, setServices, logoUrl, setLogoUrl, location, setLocation, appointments, setAppointments, availability, setAvailability, onLogout }) => {
+  onClientClick: () => void;
+}> = ({ promotions, setPromotions, images, setImages, services, setServices, logoUrl, setLogoUrl, location, setLocation, appointments, setAppointments, onClientClick }) => {
     
   const [promoTitle, setPromoTitle] = useState('');
   const [promoDesc, setPromoDesc] = useState('');
@@ -470,20 +418,6 @@ const AdminPanel: React.FC<{
   const [logoPreview, setLogoPreview] = useState(logoUrl);
   const [currentLocation, setCurrentLocation] = useState(location);
 
-  const availabilityDates = useMemo(() => Object.keys(availability).sort(), [availability]);
-
-  const handleToggleAvailability = (date: string, time: string) => {
-    setAvailability(prev => {
-        const newAvailability = { ...prev };
-        const daySlots = newAvailability[date] || [];
-        if (daySlots.includes(time)) {
-            newAvailability[date] = daySlots.filter(t => t !== time);
-        } else {
-            newAvailability[date] = [...daySlots, time].sort((a, b) => a.localeCompare(b));
-        }
-        return newAvailability;
-    });
-  };
 
   const handleLogoFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -555,14 +489,6 @@ const AdminPanel: React.FC<{
     const appointment = appointments.find(app => app.id === id);
     if (!appointment) return;
 
-    // Remove o horário da disponibilidade
-    setAvailability(prev => {
-        const newAvailability = { ...prev };
-        const daySlots = newAvailability[appointment.date] || [];
-        newAvailability[appointment.date] = daySlots.filter(t => t !== appointment.time);
-        return newAvailability;
-    });
-
     const formattedDate = new Date(appointment.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
     const clientMessage = `Olá, ${appointment.clientName}! Seu agendamento para *${appointment.service.name}* no dia *${formattedDate}* às *${appointment.time}* está *CONFIRMADO*! Esperamos por você.`;
     const clientUrl = `https://wa.me/${appointment.clientWhatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(clientMessage)}`;
@@ -575,18 +501,6 @@ const AdminPanel: React.FC<{
   const handleCancelAppointment = (id: number) => {
     const appointment = appointments.find(app => app.id === id);
     if (!appointment) return;
-
-    // Devolve o horário para a disponibilidade se o agendamento não foi confirmado
-    if(appointment.status === 'Pendente') {
-        setAvailability(prev => {
-            const newAvailability = { ...prev };
-            const daySlots = newAvailability[appointment.date] || [];
-            if (!daySlots.includes(appointment.time)) {
-                newAvailability[appointment.date] = [...daySlots, appointment.time].sort((a, b) => a.localeCompare(b));
-            }
-            return newAvailability;
-        });
-    }
 
     const formattedDate = new Date(appointment.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
     const clientMessage = `Olá, ${appointment.clientName}. Informamos que seu agendamento para *${appointment.service.name}* no dia *${formattedDate}* às *${appointment.time}* foi *CANCELADO*. Por favor, entre em contato para mais detalhes ou para reagendar.`;
@@ -604,8 +518,8 @@ const AdminPanel: React.FC<{
       <div className="container mx-auto p-4 sm:p-8">
         <header className="flex justify-between items-center mb-10">
             <h2 className="text-4xl sm:text-5xl font-anton text-gray-800">Painel <span className="text-red-600">Administrativo</span></h2>
-            <button onClick={onLogout} className="flex items-center bg-gray-800 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-700 transition duration-300 text-sm sm:text-base">
-                <LogoutIcon /> Sair
+            <button onClick={onClientClick} className="bg-gray-800 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-700 transition duration-300 text-sm sm:text-base">
+                Voltar ao Site
             </button>
         </header>
         
@@ -655,40 +569,10 @@ const AdminPanel: React.FC<{
                 <p className="text-center text-gray-500 py-4">Nenhum agendamento recebido ainda.</p>
              )}
           </div>
+
+          {/* Agenda Visual */}
+          <AgendaView appointments={appointments} />
           
-          {/* Gerenciar Disponibilidade */}
-          <div className="bg-white p-6 sm:p-8 rounded-xl shadow-xl">
-            <h3 className="text-3xl font-anton text-gray-800 border-b-2 border-red-600 pb-4 mb-6">Gerenciar Disponibilidade</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {availabilityDates.map(date => (
-                    <div key={date} className="bg-gray-50 rounded-lg p-4 shadow-sm">
-                        <h4 className="font-bold text-center text-gray-800 mb-3 pb-2 border-b">
-                            {new Date(date).toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'short', timeZone: 'UTC' })}
-                        </h4>
-                        <div className="grid grid-cols-3 gap-2">
-                            {TIME_SLOTS.map(time => {
-                                const isAvailable = availability[date]?.includes(time);
-                                return (
-                                    <button 
-                                        key={time}
-                                        onClick={() => handleToggleAvailability(date, time)}
-                                        className={`px-2 py-2 text-sm rounded-md transition-colors duration-200 font-semibold ${
-                                            isAvailable 
-                                            ? 'bg-green-200 text-green-800 hover:bg-green-300' 
-                                            : 'bg-red-200 text-red-800 hover:bg-red-300'
-                                        }`}
-                                    >
-                                        {time}
-                                    </button>
-                                )
-                            })}
-                        </div>
-                    </div>
-                ))}
-            </div>
-          </div>
-
-
           {/* Gerenciar Logo */}
           <div className="bg-white p-6 sm:p-8 rounded-xl shadow-xl">
             <h3 className="text-3xl font-anton text-gray-800 border-b-2 border-red-600 pb-4 mb-6">Gerenciar Logo</h3>
@@ -808,62 +692,20 @@ const AdminPanel: React.FC<{
 
 // --- Componente App Principal ---
 const App: React.FC = () => {
-    const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-    const [loadingAuth, setLoadingAuth] = useState<boolean>(true);
-    const [showLogin, setShowLogin] = useState<boolean>(false);
-    
-    // Simulação do Banco de Dados com useLocalStorage
-    const [promotions, setPromotions] = useLocalStorage<Promotion[]>('db_promotions', PROMOTIONS_DATA);
-    const [galleryImages, setGalleryImages] = useLocalStorage<GalleryImage[]>('db_gallery_images', GALLERY_IMAGES_DATA);
-    const [services, setServices] = useLocalStorage<Service[]>('db_services', SERVICES_DATA);
-    const [logoUrl, setLogoUrl] = useLocalStorage<string>('db_logo_url', 'https://via.placeholder.com/200x80.png?text=SUA+LOGO');
-    const [location, setLocation] = useLocalStorage<string>('db_location', 'Av. Principal, 123, Centro, Sua Cidade - SC, 88000-000');
-    const [appointments, setAppointments] = useLocalStorage<Appointment[]>('db_appointments', []);
-    
-    const initialAvailability = useMemo(() => {
-        const initial: Record<string, string[]> = {};
-        const today = new Date();
-        for (let i = 0; i < 14; i++) {
-            const date = new Date(today);
-            date.setDate(today.getDate() + i);
-            const dateString = date.toISOString().split('T')[0];
-            initial[dateString] = [...TIME_SLOTS];
-        }
-        return initial;
+    const [view, setView] = useState<'client' | 'admin'>('client');
+    const [promotions, setPromotions] = useState<Promotion[]>(PROMOTIONS_DATA);
+    const [galleryImages, setGalleryImages] = useState<GalleryImage[]>(GALLERY_IMAGES_DATA);
+    const [services, setServices] = useState<Service[]>(SERVICES_DATA);
+    const [logoUrl, setLogoUrl] = useState<string>('https://via.placeholder.com/200x80.png?text=SUA+LOGO');
+    const [location, setLocation] = useState<string>('Av. Principal, 123, Centro, Sua Cidade - SC, 88000-000');
+    const [appointments, setAppointments] = useState<Appointment[]>([]);
+
+
+    const toggleView = useCallback(() => {
+        setView(prev => (prev === 'client' ? 'admin' : 'client'));
     }, []);
 
-    const [availability, setAvailability] = useLocalStorage<Record<string, string[]>>('db_availability', initialAvailability);
-
-    useEffect(() => {
-        // FIX: Updated to use the v8 compat API style for onAuthStateChanged.
-        // Also updated the User type to firebase.User from the compat import.
-        const unsubscribe = auth.onAuthStateChanged((user: firebase.User | null) => {
-            setIsAuthenticated(!!user);
-            setLoadingAuth(false);
-        });
-
-        // Limpa o listener quando o componente é desmontado
-        return () => unsubscribe();
-    }, []);
-
-    const handleLoginSuccess = () => {
-        setShowLogin(false);
-    };
-
-    const handleLogout = async () => {
-        try {
-            // FIX: Updated to use the v8 compat API style for signOut.
-            await auth.signOut();
-        } catch (error) {
-            console.error("Erro ao fazer logout:", error);
-        }
-    };
-    
-    if (loadingAuth) {
-        return <LoadingSpinner />;
-    }
-
-    if (isAuthenticated) {
+    if (view === 'admin') {
         return (
             <AdminPanel 
                 promotions={promotions}
@@ -878,27 +720,20 @@ const App: React.FC = () => {
                 setLocation={setLocation}
                 appointments={appointments}
                 setAppointments={setAppointments}
-                availability={availability}
-                setAvailability={setAvailability}
-                onLogout={handleLogout}
+                onClientClick={toggleView}
             />
         );
     }
 
     return (
         <div className="bg-white">
-            {showLogin && <LoginModal onLoginSuccess={handleLoginSuccess} onCancel={() => setShowLogin(false)} />}
-            <Header onAdminClick={() => setShowLogin(true)} logoUrl={logoUrl} />
+            <Header onAdminClick={toggleView} logoUrl={logoUrl} />
             <main>
                 <Hero />
                 <Promotions promotions={promotions} />
                 <Gallery images={galleryImages} />
                 <HowItWorks />
-                <BookingForm 
-                    services={services} 
-                    setAppointments={setAppointments} 
-                    availability={availability} 
-                />
+                <BookingForm services={services} setAppointments={setAppointments} />
                 <Location address={location} />
             </main>
             <Footer />
