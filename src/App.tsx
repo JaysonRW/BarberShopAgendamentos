@@ -1,6 +1,10 @@
-import React, { useState, useCallback, useMemo, ChangeEvent } from 'react';
+
+import React, { useState, useCallback, useMemo, ChangeEvent, useEffect } from 'react';
 import type { Promotion, GalleryImage, Service, Appointment } from './types';
 import { BARBER_WHATSAPP_NUMBER, PROMOTIONS_DATA, GALLERY_IMAGES_DATA, TIME_SLOTS, SERVICES_DATA } from './constants';
+import { auth } from './firebaseConfig';
+// FIX: Remove Firebase v9 imports as errors suggest a v8 environment.
+// Auth functions will be called as methods on the 'auth' object (e.g., auth.signOut()).
 
 // --- Helper para rolagem suave ---
 const scrollToSection = (sectionId: string) => {
@@ -19,6 +23,8 @@ const CreditCardIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="
 const TrashIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" /></svg>;
 const UploadIcon = () => <svg className="w-8 h-8" fill="currentColor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M16.88 9.1A4 4 0 0 1 16 17H5a5 5 0 0 1-1-9.9V7a3 3 0 0 1 4.52-2.59A4.98 4.98 0 0 1 17 8c0 .38-.04.74-.12 1.1zM11 11h3l-4 4-4-4h3v-4h2v4z" /></svg>;
 const MapPinIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 20l-4.95-5.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" /></svg>;
+const LogoutIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd" /></svg>;
+
 
 // --- Ícones para 'Como Funciona' ---
 const CalendarDaysIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-red-600 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>;
@@ -142,7 +148,8 @@ const HowItWorks = () => (
 const BookingForm: React.FC<{ services: Service[]; setAppointments: React.Dispatch<React.SetStateAction<Appointment[]>> }> = ({ services, setAppointments }) => {
     const [selectedDate, setSelectedDate] = useState<string>('');
     const [selectedTime, setSelectedTime] = useState<string>('');
-    const [selectedServiceId, setSelectedServiceId] = useState<number | null>(null);
+    // FIX: Changed selectedServiceId state to handle string IDs, fixing comparison and setter errors.
+    const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
     const [selectedPayment, setSelectedPayment] = useState<string>('');
     const [name, setName] = useState<string>('');
     const [whatsapp, setWhatsapp] = useState<string>('');
@@ -180,7 +187,8 @@ const BookingForm: React.FC<{ services: Service[]; setAppointments: React.Dispat
         const clientUrl = `https://wa.me/${whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(clientMessage)}`;
         
         const newAppointment: Appointment = {
-            id: Date.now(),
+            // FIX: Converted timestamp to string to match the 'Appointment' type definition.
+            id: Date.now().toString(),
             clientName: name,
             clientWhatsapp: whatsapp,
             service: selectedService,
@@ -327,7 +335,7 @@ const Footer = () => (
   </footer>
 );
 
-// --- [NOVO] Componente Agenda Visual ---
+// --- Componente Agenda Visual ---
 const AgendaView: React.FC<{ appointments: Appointment[] }> = ({ appointments }) => {
     
     const weekDates = useMemo(() => {
@@ -353,39 +361,41 @@ const AgendaView: React.FC<{ appointments: Appointment[] }> = ({ appointments })
     return (
         <div className="bg-white p-6 sm:p-8 rounded-xl shadow-xl">
             <h3 className="text-3xl font-anton text-gray-800 border-b-2 border-red-600 pb-4 mb-6">Agenda da Semana</h3>
-            <div className="grid grid-cols-8 gap-1 text-center font-sans">
-                {/* Cabeçalho */}
-                <div className="p-2 font-bold text-gray-700">Hora</div>
-                {weekDates.map(date => (
-                    <div key={date.toISOString()} className="p-2 font-bold text-gray-700 bg-gray-100 rounded-t-lg">
-                        <div className="text-sm">{date.toLocaleDateString('pt-BR', { weekday: 'short' })}</div>
-                        <div className="text-lg">{date.toLocaleDateString('pt-BR', { day: '2-digit' })}</div>
-                    </div>
-                ))}
+            <div className="overflow-x-auto">
+                <div className="grid grid-cols-8 gap-1 text-center font-sans min-w-[800px]">
+                    {/* Cabeçalho */}
+                    <div className="p-2 font-bold text-gray-700">Hora</div>
+                    {weekDates.map(date => (
+                        <div key={date.toISOString()} className="p-2 font-bold text-gray-700 bg-gray-100 rounded-t-lg">
+                            <div className="text-sm">{date.toLocaleDateString('pt-BR', { weekday: 'short' })}</div>
+                            <div className="text-lg">{date.toLocaleDateString('pt-BR', { day: '2-digit' })}</div>
+                        </div>
+                    ))}
 
-                {/* Linhas de Horário */}
-                {TIME_SLOTS.map(time => (
-                    <React.Fragment key={time}>
-                        <div className="p-3 font-semibold text-gray-600 bg-gray-100 flex items-center justify-center rounded-l-lg">{time}</div>
-                        {weekDates.map(date => {
-                            const dateString = date.toISOString().split('T')[0];
-                            const key = `${dateString}-${time}`;
-                            const appointment = confirmedAppointmentsMap.get(key);
+                    {/* Linhas de Horário */}
+                    {TIME_SLOTS.map(time => (
+                        <React.Fragment key={time}>
+                            <div className="p-3 font-semibold text-gray-600 bg-gray-100 flex items-center justify-center rounded-l-lg">{time}</div>
+                            {weekDates.map(date => {
+                                const dateString = date.toISOString().split('T')[0];
+                                const key = `${dateString}-${time}`;
+                                const appointment = confirmedAppointmentsMap.get(key);
 
-                            return (
-                                <div
-                                    key={key}
-                                    title={appointment ? `Cliente: ${appointment.clientName}\nServiço: ${appointment.service.name}` : 'Horário disponível'}
-                                    className={`p-2 rounded-lg text-xs flex items-center justify-center transition-all duration-300 h-16
-                                        ${appointment ? 'bg-red-600 text-white font-bold shadow-md' : 'bg-gray-200 hover:bg-green-100'}`
-                                    }
-                                >
-                                    {appointment ? appointment.clientName.split(' ')[0] : ''}
-                                </div>
-                            );
-                        })}
-                    </React.Fragment>
-                ))}
+                                return (
+                                    <div
+                                        key={key}
+                                        title={appointment ? `Cliente: ${appointment.clientName}\nServiço: ${appointment.service.name}` : 'Horário disponível'}
+                                        className={`p-2 rounded-lg text-xs flex items-center justify-center transition-all duration-300 h-16
+                                            ${appointment ? 'bg-red-600 text-white font-bold shadow-md' : 'bg-gray-200 hover:bg-green-100'}`
+                                        }
+                                    >
+                                        {appointment ? appointment.clientName.split(' ')[0] : ''}
+                                    </div>
+                                );
+                            })}
+                        </React.Fragment>
+                    ))}
+                </div>
             </div>
         </div>
     );
@@ -407,7 +417,8 @@ const AdminPanel: React.FC<{
   appointments: Appointment[];
   setAppointments: React.Dispatch<React.SetStateAction<Appointment[]>>;
   onClientClick: () => void;
-}> = ({ promotions, setPromotions, images, setImages, services, setServices, logoUrl, setLogoUrl, location, setLocation, appointments, setAppointments, onClientClick }) => {
+  onLogout: () => void;
+}> = ({ promotions, setPromotions, images, setImages, services, setServices, logoUrl, setLogoUrl, location, setLocation, appointments, setAppointments, onClientClick, onLogout }) => {
     
   const [promoTitle, setPromoTitle] = useState('');
   const [promoDesc, setPromoDesc] = useState('');
@@ -446,25 +457,25 @@ const AdminPanel: React.FC<{
 
   const handleAddPromotion = (e: React.FormEvent) => {
     e.preventDefault();
-    const newPromo: Promotion = { id: Date.now(), title: promoTitle, description: promoDesc };
+    const newPromo: Promotion = { id: Date.now().toString(), title: promoTitle, description: promoDesc };
     setPromotions([...promotions, newPromo]);
     setPromoTitle('');
     setPromoDesc('');
   };
   
-  const handleRemovePromotion = (id: number) => {
+  const handleRemovePromotion = (id: string) => {
     setPromotions(promotions.filter(p => p.id !== id));
   };
   
   const handleAddImage = (e: React.FormEvent) => {
     e.preventDefault();
-    const newImage: GalleryImage = { id: Date.now(), src: imageUrl, alt: imageAlt || 'Imagem da galeria' };
+    const newImage: GalleryImage = { id: Date.now().toString(), src: imageUrl, alt: imageAlt || 'Imagem da galeria' };
     setImages([...images, newImage]);
     setImageUrl('');
     setImageAlt('');
   };
   
-  const handleRemoveImage = (id: number) => {
+  const handleRemoveImage = (id: string) => {
     setImages(images.filter(img => img.id !== id));
   };
 
@@ -475,17 +486,17 @@ const AdminPanel: React.FC<{
       alert('Por favor, preencha o nome do serviço e um preço válido.');
       return;
     }
-    const newService: Service = { id: Date.now(), name: serviceName, price: price };
+    const newService: Service = { id: Date.now().toString(), name: serviceName, price: price };
     setServices([...services, newService]);
     setServiceName('');
     setServicePrice('');
   };
   
-  const handleRemoveService = (id: number) => {
+  const handleRemoveService = (id: string) => {
     setServices(services.filter(s => s.id !== id));
   };
 
-  const handleConfirmAppointment = (id: number) => {
+  const handleConfirmAppointment = (id: string) => {
     const appointment = appointments.find(app => app.id === id);
     if (!appointment) return;
 
@@ -498,7 +509,7 @@ const AdminPanel: React.FC<{
     setAppointments(prev => prev.map(app => app.id === id ? { ...app, status: 'Confirmado' } : app));
   };
 
-  const handleCancelAppointment = (id: number) => {
+  const handleCancelAppointment = (id: string) => {
     const appointment = appointments.find(app => app.id === id);
     if (!appointment) return;
 
@@ -518,9 +529,14 @@ const AdminPanel: React.FC<{
       <div className="container mx-auto p-4 sm:p-8">
         <header className="flex justify-between items-center mb-10">
             <h2 className="text-4xl sm:text-5xl font-anton text-gray-800">Painel <span className="text-red-600">Administrativo</span></h2>
-            <button onClick={onClientClick} className="bg-gray-800 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-700 transition duration-300 text-sm sm:text-base">
-                Voltar ao Site
-            </button>
+            <div className="flex items-center gap-4">
+                <button onClick={onClientClick} className="bg-gray-800 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-700 transition duration-300 text-sm sm:text-base">
+                    Voltar ao Site
+                </button>
+                <button onClick={onLogout} className="flex items-center bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700 transition duration-300 text-sm sm:text-base">
+                    <LogoutIcon /> Sair
+                </button>
+            </div>
         </header>
         
         <div className="space-y-10">
@@ -690,6 +706,67 @@ const AdminPanel: React.FC<{
   );
 };
 
+// --- Componente Modal de Login ---
+const LoginModal: React.FC<{
+  onClose: () => void;
+  onLogin: (email: string, pass: string) => Promise<void>;
+  error: string;
+}> = ({ onClose, onLogin, error }) => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    await onLogin(email, password);
+    setIsLoading(false);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
+      <div className="bg-gray-800 p-8 rounded-xl shadow-2xl text-white w-full max-w-md m-4">
+        <h2 className="text-3xl font-anton text-center mb-6">Acesso do Barbeiro</h2>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Email"
+            className="w-full p-3 bg-gray-700 rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-red-500"
+            required
+          />
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Senha"
+            className="w-full p-3 bg-gray-700 rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-red-500"
+            required
+          />
+          {error && <p className="text-red-400 text-sm text-center">{error}</p>}
+          <div className="flex flex-col gap-4 pt-4">
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full bg-red-600 font-bold py-3 px-6 rounded-lg uppercase hover:bg-red-700 transition duration-300 disabled:bg-gray-500"
+            >
+              {isLoading ? 'Entrando...' : 'Entrar'}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-full bg-gray-600 font-bold py-3 px-6 rounded-lg uppercase hover:bg-gray-500 transition duration-300"
+            >
+              Cancelar
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 // --- Componente App Principal ---
 const App: React.FC = () => {
     const [view, setView] = useState<'client' | 'admin'>('client');
@@ -700,12 +777,59 @@ const App: React.FC = () => {
     const [location, setLocation] = useState<string>('Av. Principal, 123, Centro, Sua Cidade - SC, 88000-000');
     const [appointments, setAppointments] = useState<Appointment[]>([]);
 
+    // FIX: Removed explicit 'User' type to allow type inference from Firebase v8.
+    const [user, setUser] = useState<any | null>(null);
+    const [authLoading, setAuthLoading] = useState(true);
+    const [showLoginModal, setShowLoginModal] = useState(false);
+    const [loginError, setLoginError] = useState('');
 
-    const toggleView = useCallback(() => {
-        setView(prev => (prev === 'client' ? 'admin' : 'client'));
+    useEffect(() => {
+        // FIX: Switched to Firebase v8 syntax for auth state listener.
+        const unsubscribe = auth.onAuthStateChanged((currentUser) => {
+            setUser(currentUser);
+            setAuthLoading(false);
+            if (!currentUser) {
+                setView('client'); // Força a volta para a visão do cliente ao deslogar
+            }
+        });
+        return () => unsubscribe(); // Limpa o listener ao desmontar
     }, []);
 
-    if (view === 'admin') {
+    const handleAdminAreaClick = () => {
+        if (user) {
+            setView('admin');
+        } else {
+            setLoginError('');
+            setShowLoginModal(true);
+        }
+    };
+
+    const handleLogin = async (email: string, pass: string) => {
+        try {
+            // FIX: Switched to Firebase v8 syntax for sign-in.
+            await auth.signInWithEmailAndPassword(email, pass);
+            setShowLoginModal(false);
+            setView('admin');
+        } catch (error) {
+            console.error(error);
+            setLoginError('Email ou senha inválidos. Tente novamente.');
+        }
+    };
+
+    const handleLogout = async () => {
+        // FIX: Switched to Firebase v8 syntax for sign-out.
+        await auth.signOut();
+    };
+
+    if (authLoading) {
+        return (
+            <div className="flex h-screen items-center justify-center bg-gray-900">
+                <div className="h-16 w-16 animate-spin rounded-full border-4 border-dashed border-red-600"></div>
+            </div>
+        );
+    }
+    
+    if (view === 'admin' && user) {
         return (
             <AdminPanel 
                 promotions={promotions}
@@ -720,14 +844,22 @@ const App: React.FC = () => {
                 setLocation={setLocation}
                 appointments={appointments}
                 setAppointments={setAppointments}
-                onClientClick={toggleView}
+                onClientClick={() => setView('client')}
+                onLogout={handleLogout}
             />
         );
     }
 
     return (
         <div className="bg-white">
-            <Header onAdminClick={toggleView} logoUrl={logoUrl} />
+            {showLoginModal && (
+                <LoginModal
+                    onClose={() => setShowLoginModal(false)}
+                    onLogin={handleLogin}
+                    error={loginError}
+                />
+            )}
+            <Header onAdminClick={handleAdminAreaClick} logoUrl={logoUrl} />
             <main>
                 <Hero />
                 <Promotions promotions={promotions} />
