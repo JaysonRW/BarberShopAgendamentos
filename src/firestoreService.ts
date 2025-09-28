@@ -11,7 +11,7 @@ export interface BarberData {
     whatsappNumber: string;
     slug: string;
     isActive: boolean;
-    createdAt: any;
+    createdAt?: any;
   };
   promotions: Promotion[];
   galleryImages: GalleryImage[];
@@ -26,17 +26,26 @@ export class FirestoreService {
   // Carregar todos os dados de um barbeiro (multi-tenant)
   static async loadBarberData(barberId: string): Promise<BarberData | null> {
     try {
-      console.log(`Carregando dados do barbeiro: ${barberId}`);
+      console.log(`📊 Carregando dados do barbeiro: ${barberId}`);
       
       // Buscar documento principal do barbeiro
+      console.log('🔍 Buscando documento principal do barbeiro...');
       const barberDoc = await db.collection('barbers').doc(barberId).get();
       
+      // Validação: Checar se o documento existe
       if (!barberDoc.exists) {
-        console.log('Barbeiro não encontrado no banco');
+        console.warn(`⚠️ Barbeiro com ID ${barberId} não encontrado.`);
         return null;
       }
       
       const barberData = barberDoc.data();
+      console.log('📄 Dados do barbeiro encontrados:', barberData);
+
+      // Validação: Checar se os dados essenciais do perfil existem
+      if (!barberData || !barberData.profile || !barberData.profile.shopName) {
+        console.error(`❌ Dados do perfil do barbeiro ${barberId} estão incompletos ou corrompidos.`);
+        return null;
+      }
       
       // Buscar todas as subcoleções em paralelo
       const [promotionsSnapshot, servicesSnapshot, gallerySnapshot, appointmentsSnapshot] = await Promise.all([
@@ -79,19 +88,22 @@ export class FirestoreService {
         ...doc.data()
       } as Appointment));
       
-      return {
+      const finalData: BarberData = {
         id: barberId,
-        profile: barberData?.profile || {},
-        availability: barberData?.availability || {},
+        profile: barberData.profile,
+        availability: barberData.availability || {},
         promotions,
         services,
         galleryImages,
         appointments
       };
       
+      console.log('DADOS FINAIS CARREGADOS:', finalData);
+      return finalData;
+      
     } catch (error) {
-      console.error('Erro ao carregar dados do barbeiro:', error);
-      return null;
+      console.error('Erro grave ao carregar dados do barbeiro:', error);
+      throw error; // Propaga o erro para ser tratado na UI
     }
   }
   
@@ -134,6 +146,8 @@ export class FirestoreService {
   // Atualizar perfil do barbeiro
   static async updateBarberProfile(barberId: string, profileData: any): Promise<boolean> {
     try {
+      console.log('💾 Salvando perfil do barbeiro:', barberId, profileData);
+      
       await db.collection('barbers').doc(barberId).update({
         'profile': {
           ...profileData,
@@ -148,11 +162,13 @@ export class FirestoreService {
           isActive: true,
           lastUpdated: new Date()
         });
+        console.log('✅ Slug público atualizado:', profileData.slug);
       }
       
+      console.log('✅ Perfil atualizado com sucesso');
       return true;
     } catch (error) {
-      console.error('Erro ao atualizar perfil:', error);
+      console.error('❌ Erro ao atualizar perfil:', error);
       return false;
     }
   }
@@ -169,6 +185,21 @@ export class FirestoreService {
     } catch (error) {
       console.error('Erro ao adicionar promoção:', error);
       return null;
+    }
+  }
+  
+  static async updatePromotion(barberId: string, promotionId: string, promotionData: any): Promise<boolean> {
+    try {
+      console.log('💾 Atualizando promoção:', promotionId, promotionData);
+      await db.collection('barbers').doc(barberId).collection('promotions').doc(promotionId).update({
+        ...promotionData,
+        updatedAt: new Date()
+      });
+      console.log('✅ Promoção atualizada com sucesso');
+      return true;
+    } catch (error) {
+      console.error('❌ Erro ao atualizar promoção:', error);
+      return false;
     }
   }
   
@@ -201,6 +232,21 @@ export class FirestoreService {
     }
   }
   
+  static async updateService(barberId: string, serviceId: string, serviceData: any): Promise<boolean> {
+    try {
+      console.log('💾 Atualizando serviço:', serviceId, serviceData);
+      await db.collection('barbers').doc(barberId).collection('services').doc(serviceId).update({
+        ...serviceData,
+        updatedAt: new Date()
+      });
+      console.log('✅ Serviço atualizado com sucesso');
+      return true;
+    } catch (error) {
+      console.error('❌ Erro ao atualizar serviço:', error);
+      return false;
+    }
+  }
+  
   static async deleteService(barberId: string, serviceId: string): Promise<boolean> {
     try {
       await db.collection('barbers').doc(barberId).collection('services').doc(serviceId).update({
@@ -226,6 +272,21 @@ export class FirestoreService {
     } catch (error) {
       console.error('Erro ao adicionar imagem:', error);
       return null;
+    }
+  }
+  
+  static async updateGalleryImage(barberId: string, imageId: string, imageData: any): Promise<boolean> {
+    try {
+      console.log('💾 Atualizando imagem da galeria:', imageId, imageData);
+      await db.collection('barbers').doc(barberId).collection('gallery').doc(imageId).update({
+        ...imageData,
+        updatedAt: new Date()
+      });
+      console.log('✅ Imagem da galeria atualizada com sucesso');
+      return true;
+    } catch (error) {
+      console.error('❌ Erro ao atualizar imagem da galeria:', error);
+      return false;
     }
   }
   
@@ -319,19 +380,112 @@ export class FirestoreService {
     }
   }
   
-  // BUSCA POR SLUG PÚBLICO
-  static async findBarberBySlug(slug: string): Promise<string | null> {
+  // BUSCA POR USER ID
+  static async findBarberByUserId(userId: string): Promise<string | null> {
     try {
-      const slugDoc = await db.collection('public-slugs').doc(slug).get();
+      console.log(`🔍 Buscando barbeiro por userID: ${userId}`);
       
-      if (slugDoc.exists && slugDoc.data()?.isActive) {
-        return slugDoc.data()?.barberId || null;
+      // Buscar barbeiro pelo campo userID (tentar diferentes variações)
+      let barbersSnapshot = await db.collection('barbers')
+        .where('userID', '==', userId)
+        .where('profile.isActive', '==', true)
+        .limit(1)
+        .get();
+      
+      // Se não encontrou, tentar sem filtro de isActive
+      if (barbersSnapshot.empty) {
+        console.log('⚠️ Tentando busca sem filtro isActive...');
+        barbersSnapshot = await db.collection('barbers')
+          .where('userID', '==', userId)
+          .limit(1)
+          .get();
       }
+      
+      // Se ainda não encontrou, tentar buscar pelo ID do documento
+      if (barbersSnapshot.empty) {
+        console.log('⚠️ Tentando busca pelo ID do documento...');
+        const directDoc = await db.collection('barbers').doc(userId).get();
+        if (directDoc.exists) {
+          console.log('✅ Barbeiro encontrado pelo ID do documento');
+          return userId;
+        }
+      }
+      
+      if (!barbersSnapshot.empty) {
+        const barberId = barbersSnapshot.docs[0].id;
+        const barberData = barbersSnapshot.docs[0].data();
+        console.log(`✅ Barbeiro encontrado para userID ${userId}: ${barberId}`);
+        console.log('📄 Dados do barbeiro encontrado:', barberData);
+        return barberId;
+      }
+      
+      console.log(`❌ Nenhum barbeiro encontrado para userID: ${userId}`);
+      console.log('🔍 Vamos verificar todos os barbeiros disponíveis...');
+      
+      // Debug: listar todos os barbeiros para ver a estrutura
+      const allBarbers = await db.collection('barbers').limit(5).get();
+      console.log('📋 Barbeiros disponíveis:');
+      allBarbers.docs.forEach(doc => {
+        const data = doc.data();
+        console.log(`- ID: ${doc.id}, userID: ${data.userID}, profile.userID: ${data.profile?.userID}`);
+      });
       
       return null;
     } catch (error) {
-      console.error('Erro ao buscar por slug:', error);
+      console.error('❌ Erro ao buscar barbeiro por userID:', error);
+      throw error;
+    }
+  }
+
+  // BUSCA POR SLUG PÚBLICO
+  static async findBarberBySlug(slug: string): Promise<string | null> {
+    try {
+      console.log(`🔍 Buscando barbeiro por slug: ${slug}`);
+      
+      // Primeiro, tentar buscar na coleção public-slugs
+      const slugDoc = await db.collection('public-slugs').doc(slug).get();
+      
+      if (slugDoc.exists && slugDoc.data()?.isActive) {
+        const barberId = slugDoc.data()?.barberId || null;
+        console.log(`✅ Barbeiro encontrado na public-slugs com ID: ${barberId}`);
+        return barberId;
+      }
+      
+      console.log(`⚠️ Slug não encontrado em public-slugs, buscando diretamente na coleção barbers...`);
+      
+      // Se não encontrou em public-slugs, buscar diretamente na coleção barbers
+      const barbersSnapshot = await db.collection('barbers')
+        .where('profile.slug', '==', slug)
+        .where('profile.isActive', '==', true)
+        .limit(1)
+        .get();
+      
+      if (!barbersSnapshot.empty) {
+        const barberDoc = barbersSnapshot.docs[0];
+        const barberId = barberDoc.id;
+        console.log(`✅ Barbeiro encontrado diretamente na coleção barbers com ID: ${barberId}`);
+        
+        // Criar automaticamente o registro em public-slugs para futuras consultas
+        try {
+          await db.collection('public-slugs').doc(slug).set({
+            barberId: barberId,
+            isActive: true,
+            lastUpdated: new Date(),
+            autoCreated: true
+          });
+          console.log(`✅ Registro criado automaticamente em public-slugs para slug: ${slug}`);
+        } catch (createError) {
+          console.warn(`⚠️ Não foi possível criar registro em public-slugs:`, createError);
+        }
+        
+        return barberId;
+      }
+      
+      console.log(`❌ Slug ${slug} não encontrado em nenhuma coleção`);
       return null;
+    } catch (error) {
+      console.error('❌ Erro ao buscar por slug:', error);
+      throw error; // Propaga o erro para ser tratado na UI
     }
   }
   
@@ -365,6 +519,83 @@ export class FirestoreService {
     } catch (error) {
       console.error('Erro ao atualizar disponibilidade:', error);
       return false;
+    }
+  }
+  
+  // GERAR SLUG ÚNICO
+  static async generateUniqueSlug(baseSlug: string): Promise<string> {
+    try {
+      let slug = baseSlug.toLowerCase()
+        .replace(/[^a-z0-9]/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+      
+      let counter = 1;
+      let finalSlug = slug;
+      
+      // Verificar se o slug já existe
+      while (true) {
+        const slugDoc = await db.collection('public-slugs').doc(finalSlug).get();
+        if (!slugDoc.exists) {
+          break;
+        }
+        finalSlug = `${slug}-${counter}`;
+        counter++;
+      }
+      
+      console.log('✅ Slug único gerado:', finalSlug);
+      return finalSlug;
+    } catch (error) {
+      console.error('❌ Erro ao gerar slug único:', error);
+      return baseSlug + '-' + Date.now();
+    }
+  }
+  
+  // CRIAR NOVO BARBEIRO COMPLETO
+  static async createNewBarber(userId: string, barberData: {
+    shopName: string;
+    location: string;
+    whatsappNumber: string;
+    email: string;
+  }): Promise<string | null> {
+    try {
+      console.log('👤 Criando novo barbeiro:', barberData);
+      
+      // Gerar slug único baseado no nome da barbearia
+      const baseSlug = barberData.shopName.toLowerCase()
+        .replace(/[^a-z0-9]/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+      
+      const uniqueSlug = await this.generateUniqueSlug(baseSlug);
+      
+      // Criar documento do barbeiro
+      const barberId = userId; // Usar o userId como barberId
+      await db.collection('barbers').doc(barberId).set({
+        profile: {
+          ...barberData,
+          slug: uniqueSlug,
+          logoUrl: 'https://via.placeholder.com/200x80.png?text=SUA+LOGO',
+          isActive: true,
+          createdAt: new Date()
+        },
+        userID: userId,
+        availability: this.generateInitialAvailability()
+      });
+      
+      // Criar slug público
+      await db.collection('public-slugs').doc(uniqueSlug).set({
+        barberId: barberId,
+        isActive: true,
+        lastUpdated: new Date()
+      });
+      
+      console.log('✅ Novo barbeiro criado com sucesso:', barberId, 'Slug:', uniqueSlug);
+      return barberId;
+      
+    } catch (error) {
+      console.error('❌ Erro ao criar novo barbeiro:', error);
+      return null;
     }
   }
 }

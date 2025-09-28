@@ -1,7 +1,11 @@
+
 import React, { useState, useCallback, useMemo, ChangeEvent, useEffect } from 'react';
-import type { Promotion, GalleryImage, Service, Appointment, BarberData } from './types';
-import { FirestoreService } from './firestoreService.ts';
+import type { Promotion, GalleryImage, Service, Appointment } from './types';
+import { FirestoreService, BarberData } from './firestoreService.ts';
 import { auth } from './firebaseConfig';
+import { testFirebaseConnection, testFirestoreWrite, testFirestoreRead } from './firebaseTest';
+import { APP_CONFIG, getBarberSlugFromUrl, debugLog } from './config';
+import { populateTestData, createTestBarber } from './populateTestData';
 
 // --- Dados Mock para fallback/desenvolvimento ---
 const createMockData = (): BarberData => ({
@@ -39,12 +43,7 @@ const scrollToSection = (sectionId: string) => {
   }
 };
 
-// --- Função para obter slug da URL ---
-const getBarberSlugFromUrl = (): string | null => {
-  // Em ambiente real, ler da URL: window.location.pathname.slice(1)
-  // Para teste, usar slug fixo ou deixar null para modo desenvolvimento
-  return 'barbearia-exemplo';
-};
+// Função para obter slug da URL agora está em config.ts
 
 // === ÍCONES SVG (mantidos do código original) ===
 const CalendarIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" /></svg>;
@@ -74,6 +73,141 @@ const NotFound = () => (
     <p className="text-gray-300">O link que você acessou não existe ou foi removido.</p>
   </div>
 );
+
+// Novo: Componente para erro de conexão
+const ConnectionError = ({ message }: { message: string }) => (
+  <div className="flex flex-col items-center justify-center h-screen bg-gray-900 text-white text-center p-4">
+    <h1 className="text-4xl font-bold mb-4">Erro de Conexão</h1>
+    <p className="text-gray-300 max-w-md">{message}</p>
+    <button
+      onClick={() => window.location.reload()}
+      className="mt-8 bg-red-600 text-white font-bold py-3 px-8 rounded-lg text-lg uppercase hover:bg-red-700 transition duration-300"
+    >
+      Tentar Novamente
+    </button>
+  </div>
+);
+
+// Componente de Debug (apenas em desenvolvimento)
+const DebugPanel = ({ 
+  user, 
+  barberData, 
+  view, 
+  useMockData,
+  onRefreshData,
+  onSetUser,
+  onSetView
+}: { 
+  user: any; 
+  barberData: BarberData | null; 
+  view: string; 
+  useMockData: boolean;
+  onRefreshData: () => void;
+  onSetUser: (user: any) => void;
+  onSetView: (view: 'client' | 'admin') => void;
+}) => {
+  if (process.env.NODE_ENV !== 'development') return null;
+  
+  const handlePopulateTestData = async () => {
+    if (barberData && !useMockData) {
+      console.log('🧪 Populando dados de teste...');
+      await populateTestData(barberData.id);
+      onRefreshData();
+    }
+  };
+  
+  const handleCreateTestBarber = async () => {
+    console.log('👤 Criando barbeiro de teste...');
+    const testBarberId = await createTestBarber();
+    if (testBarberId) {
+      console.log('✅ Barbeiro de teste criado! ID:', testBarberId);
+      alert('Barbeiro de teste criado! Acesse: /barbearia-teste');
+    }
+  };
+  
+  const handleTestLogin = () => {
+    console.log('🧪 Simulando login com userID do barbeiro existente...');
+    // Simular login com o userID que está no Firebase
+    onSetUser({ uid: 'RnCu9uIUU2a6d7ZGa35XHs1ubfn2', email: 'barbeiro@exemplo.com' });
+    onSetView('admin');
+  };
+  
+  const handleCreateNewBarber = async () => {
+    const shopName = prompt('Nome da Barbearia:');
+    const location = prompt('Localização:');
+    const whatsapp = prompt('WhatsApp (apenas números):');
+    const email = prompt('Email:');
+    
+    if (shopName && location && whatsapp && email) {
+      console.log('👤 Criando novo barbeiro...');
+      const barberId = await FirestoreService.createNewBarber('new-user-' + Date.now(), {
+        shopName,
+        location,
+        whatsappNumber: whatsapp,
+        email
+      });
+      
+      if (barberId) {
+        const slug = await FirestoreService.generateUniqueSlug(shopName);
+        alert(`✅ Novo barbeiro criado!\n\nSlug: ${slug}\nAcesse: /${slug}`);
+      } else {
+        alert('❌ Erro ao criar barbeiro');
+      }
+    }
+  };
+  
+  return (
+    <div className="fixed top-4 left-4 bg-black bg-opacity-80 text-white p-4 rounded-lg text-xs max-w-sm z-50">
+      <h3 className="font-bold mb-2">🐛 Debug Info</h3>
+      <div className="space-y-1 mb-3">
+        <p><strong>Usuário:</strong> {user ? 'Logado' : 'Não logado'}</p>
+        <p><strong>View:</strong> {view}</p>
+        <p><strong>Dados:</strong> {barberData ? 'Carregados' : 'Não carregados'}</p>
+        <p><strong>Mock:</strong> {useMockData ? 'Sim' : 'Não'}</p>
+        <p><strong>URL:</strong> {window.location.pathname}</p>
+      </div>
+      
+      <div className="space-y-2">
+        <button
+          onClick={onRefreshData}
+          className="w-full bg-blue-600 text-white px-2 py-1 rounded text-xs hover:bg-blue-700"
+        >
+          🔄 Recarregar Dados
+        </button>
+        
+        {barberData && !useMockData && (
+          <button
+            onClick={handlePopulateTestData}
+            className="w-full bg-green-600 text-white px-2 py-1 rounded text-xs hover:bg-green-700"
+          >
+            🧪 Popular Dados Teste
+          </button>
+        )}
+        
+        <button
+          onClick={handleCreateTestBarber}
+          className="w-full bg-purple-600 text-white px-2 py-1 rounded text-xs hover:bg-purple-700"
+        >
+          👤 Criar Barbeiro Teste
+        </button>
+        
+        <button
+          onClick={handleTestLogin}
+          className="w-full bg-orange-600 text-white px-2 py-1 rounded text-xs hover:bg-orange-700"
+        >
+          🔑 Testar Login Admin
+        </button>
+        
+        <button
+          onClick={handleCreateNewBarber}
+          className="w-full bg-cyan-600 text-white px-2 py-1 rounded text-xs hover:bg-cyan-700"
+        >
+          🆕 Criar Novo Barbeiro
+        </button>
+      </div>
+    </div>
+  );
+};
 
 // Header
 const Header: React.FC<{ onAdminClick: () => void; logoUrl: string; shopName: string }> = ({ 
@@ -531,33 +665,256 @@ const LoginModal: React.FC<{
   );
 };
 
-// Painel Administrativo Simplificado (pode ser expandido depois)
+// Painel Administrativo Completo
 const AdminPanel: React.FC<{
   barberData: BarberData;
   onLogout: () => void;
   onDataUpdate: () => void;
-}> = ({ barberData, onLogout, onDataUpdate }) => (
-  <div className="min-h-screen bg-gray-900 text-white p-8">
-    <header className="flex justify-between items-center mb-8">
-      <h1 className="text-3xl font-bold">Painel Administrativo</h1>
-      <button 
-        onClick={onLogout}
-        className="flex items-center bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700 transition duration-300"
-      >
-        <LogoutIcon /> Sair
-      </button>
-    </header>
+}> = ({ barberData, onLogout, onDataUpdate }) => {
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'profile' | 'services' | 'promotions' | 'gallery' | 'appointments'>('dashboard');
+  const [isEditing, setIsEditing] = useState(false);
+  const [editData, setEditData] = useState<any>({});
+
+  const handleEdit = (section: string, data: any) => {
+    setEditData({ ...data });
+    setIsEditing(true);
+  };
+
+  const handleSave = async () => {
+    try {
+      console.log('💾 Salvando dados:', editData);
+      
+      // Determinar qual seção está sendo editada
+      if (activeTab === 'profile') {
+        const success = await FirestoreService.updateBarberProfile(barberData.id, editData);
+        if (success) {
+          alert('✅ Perfil atualizado com sucesso!');
+        } else {
+          alert('❌ Erro ao atualizar perfil');
+        }
+      } else if (activeTab === 'services') {
+        if (editData.id) {
+          // Atualizar serviço existente
+          const success = await FirestoreService.updateService(barberData.id, editData.id, editData);
+          if (success) {
+            alert('✅ Serviço atualizado com sucesso!');
+          } else {
+            alert('❌ Erro ao atualizar serviço');
+          }
+        } else {
+          // Adicionar novo serviço
+          const serviceId = await FirestoreService.addService(barberData.id, editData);
+          if (serviceId) {
+            alert('✅ Serviço adicionado com sucesso!');
+          } else {
+            alert('❌ Erro ao adicionar serviço');
+          }
+        }
+      } else if (activeTab === 'promotions') {
+        if (editData.id) {
+          // Atualizar promoção existente
+          const success = await FirestoreService.updatePromotion(barberData.id, editData.id, editData);
+          if (success) {
+            alert('✅ Promoção atualizada com sucesso!');
+          } else {
+            alert('❌ Erro ao atualizar promoção');
+          }
+        } else {
+          // Adicionar nova promoção
+          const promotionId = await FirestoreService.addPromotion(barberData.id, editData);
+          if (promotionId) {
+            alert('✅ Promoção adicionada com sucesso!');
+          } else {
+            alert('❌ Erro ao adicionar promoção');
+          }
+        }
+      } else if (activeTab === 'gallery') {
+        if (editData.id) {
+          // Atualizar imagem existente
+          const success = await FirestoreService.updateGalleryImage(barberData.id, editData.id, editData);
+          if (success) {
+            alert('✅ Imagem atualizada com sucesso!');
+          } else {
+            alert('❌ Erro ao atualizar imagem');
+          }
+        } else {
+          // Adicionar nova imagem
+          const imageId = await FirestoreService.addGalleryImage(barberData.id, editData);
+          if (imageId) {
+            alert('✅ Imagem adicionada com sucesso!');
+          } else {
+            alert('❌ Erro ao adicionar imagem');
+          }
+        }
+      }
+      
+      setIsEditing(false);
+      onDataUpdate(); // Recarregar dados
+    } catch (error) {
+      console.error('❌ Erro ao salvar:', error);
+      alert('❌ Erro ao salvar dados');
+    }
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    setEditData({});
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-900 text-white">
+      {/* Header */}
+      <header className="bg-gray-800 border-b border-gray-700">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-6">
+            <div className="flex items-center">
+              <h1 className="text-2xl font-bold">Painel Administrativo</h1>
+              <span className="ml-4 text-sm text-gray-400">{barberData.profile.shopName}</span>
+            </div>
+            <button 
+              onClick={onLogout}
+              className="flex items-center bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700 transition duration-300"
+            >
+              <LogoutIcon /> Sair
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex flex-col lg:flex-row gap-8">
+          {/* Sidebar */}
+          <div className="lg:w-64">
+            <nav className="space-y-2">
+              {[
+                { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+                { id: 'profile', label: 'Perfil da Barbearia', icon: '🏪' },
+                { id: 'services', label: 'Serviços', icon: '✂️' },
+                { id: 'promotions', label: 'Promoções', icon: '🎯' },
+                { id: 'gallery', label: 'Galeria', icon: '🖼️' },
+                { id: 'appointments', label: 'Agendamentos', icon: '📅' }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`w-full text-left px-4 py-3 rounded-lg transition duration-200 ${
+                    activeTab === tab.id 
+                      ? 'bg-red-600 text-white' 
+                      : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                  }`}
+                >
+                  <span className="mr-3">{tab.icon}</span>
+                  {tab.label}
+                </button>
+              ))}
+            </nav>
+          </div>
+
+          {/* Main Content */}
+          <div className="flex-1">
+            {activeTab === 'dashboard' && (
+              <DashboardTab barberData={barberData} />
+            )}
+            
+            {activeTab === 'profile' && (
+              <ProfileTab 
+                barberData={barberData} 
+                onEdit={handleEdit}
+                isEditing={isEditing}
+                editData={editData}
+                onSave={handleSave}
+                onCancel={handleCancel}
+                onEditDataChange={setEditData}
+              />
+            )}
+            
+            {activeTab === 'services' && (
+              <ServicesTab 
+                services={barberData.services}
+                barberId={barberData.id}
+                onEdit={handleEdit}
+                isEditing={isEditing}
+                editData={editData}
+                onSave={handleSave}
+                onCancel={handleCancel}
+                onEditDataChange={setEditData}
+                onDataUpdate={onDataUpdate}
+              />
+            )}
+            
+            {activeTab === 'promotions' && (
+              <PromotionsTab 
+                promotions={barberData.promotions}
+                onEdit={handleEdit}
+                isEditing={isEditing}
+                editData={editData}
+                onSave={handleSave}
+                onCancel={handleCancel}
+                onEditDataChange={setEditData}
+              />
+            )}
+            
+            {activeTab === 'gallery' && (
+              <GalleryTab 
+                images={barberData.galleryImages}
+                onEdit={handleEdit}
+                isEditing={isEditing}
+                editData={editData}
+                onSave={handleSave}
+                onCancel={handleCancel}
+                onEditDataChange={setEditData}
+              />
+            )}
+            
+            {activeTab === 'appointments' && (
+              <AppointmentsTab 
+                appointments={barberData.appointments}
+                onDataUpdate={onDataUpdate}
+              />
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Componentes das Abas do Painel Administrativo
+
+// Dashboard Tab
+const DashboardTab: React.FC<{ barberData: BarberData }> = ({ barberData }) => (
+  <div className="space-y-6">
+    <h2 className="text-3xl font-bold">Dashboard</h2>
     
+    {/* Cards de Estatísticas */}
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="bg-gray-800 rounded-lg p-6">
+        <h3 className="text-lg font-semibold text-gray-300">Total de Agendamentos</h3>
+        <p className="text-3xl font-bold text-white">{barberData.appointments.length}</p>
+      </div>
+      
+      <div className="bg-gray-800 rounded-lg p-6">
+        <h3 className="text-lg font-semibold text-gray-300">Serviços Ativos</h3>
+        <p className="text-3xl font-bold text-white">{barberData.services.length}</p>
+      </div>
+      
+      <div className="bg-gray-800 rounded-lg p-6">
+        <h3 className="text-lg font-semibold text-gray-300">Promoções Ativas</h3>
+        <p className="text-3xl font-bold text-white">{barberData.promotions.length}</p>
+      </div>
+    </div>
+
+    {/* Agendamentos Recentes */}
     <div className="bg-gray-800 rounded-lg p-6">
-      <h2 className="text-2xl font-bold mb-4">Agendamentos Recentes</h2>
+      <h3 className="text-xl font-bold mb-4">Agendamentos Recentes</h3>
       {barberData.appointments.length > 0 ? (
         <div className="space-y-4">
-          {barberData.appointments.slice(0, 10).map(appointment => (
+          {barberData.appointments.slice(0, 5).map(appointment => (
             <div key={appointment.id} className="bg-gray-700 p-4 rounded-lg flex justify-between items-center">
               <div>
                 <p className="font-bold">{appointment.clientName}</p>
                 <p className="text-sm text-gray-300">
-                  {appointment.serviceName} - {new Date(appointment.date).toLocaleDateString('pt-BR', {timeZone: 'UTC'})} às {appointment.time}
+                  {appointment.service?.name || 'Serviço não especificado'} - {new Date(appointment.date).toLocaleDateString('pt-BR', {timeZone: 'UTC'})} às {appointment.time}
                 </p>
               </div>
               <span className={`px-3 py-1 rounded-full text-xs font-bold ${
@@ -575,90 +932,600 @@ const AdminPanel: React.FC<{
   </div>
 );
 
+// Profile Tab
+const ProfileTab: React.FC<{
+  barberData: BarberData;
+  onEdit: (section: string, data: any) => void;
+  isEditing: boolean;
+  editData: any;
+  onSave: () => void;
+  onCancel: () => void;
+  onEditDataChange: (data: any) => void;
+}> = ({ barberData, onEdit, isEditing, editData, onSave, onCancel, onEditDataChange }) => (
+  <div className="space-y-6">
+    <div className="flex justify-between items-center">
+      <h2 className="text-3xl font-bold">Perfil da Barbearia</h2>
+      {!isEditing && (
+        <button
+          onClick={() => onEdit('profile', barberData.profile)}
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition duration-300"
+        >
+          Editar Perfil
+        </button>
+      )}
+    </div>
+
+    <div className="bg-gray-800 rounded-lg p-6">
+      {isEditing ? (
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Nome da Barbearia</label>
+            <input
+              type="text"
+              value={editData.shopName || ''}
+              onChange={(e) => onEditDataChange({...editData, shopName: e.target.value})}
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Localização</label>
+            <input
+              type="text"
+              value={editData.location || ''}
+              onChange={(e) => onEditDataChange({...editData, location: e.target.value})}
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">WhatsApp</label>
+            <input
+              type="text"
+              value={editData.whatsappNumber || ''}
+              onChange={(e) => onEditDataChange({...editData, whatsappNumber: e.target.value})}
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">URL do Logo</label>
+            <input
+              type="text"
+              value={editData.logoUrl || ''}
+              onChange={(e) => onEditDataChange({...editData, logoUrl: e.target.value})}
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+            />
+          </div>
+          
+          <div className="flex space-x-4">
+            <button
+              onClick={onSave}
+              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition duration-300"
+            >
+              Salvar
+            </button>
+            <button
+              onClick={onCancel}
+              className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition duration-300"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="flex items-center space-x-4">
+            <img 
+              src={barberData.profile.logoUrl} 
+              alt="Logo" 
+              className="w-20 h-20 rounded-lg object-cover"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.src = 'https://via.placeholder.com/80x80.png?text=LOGO';
+              }}
+            />
+            <div>
+              <h3 className="text-xl font-bold">{barberData.profile.shopName}</h3>
+              <p className="text-gray-400">{barberData.profile.location}</p>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-300">WhatsApp</label>
+              <p className="text-white">{barberData.profile.whatsappNumber}</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300">Slug</label>
+              <p className="text-white">{barberData.profile.slug}</p>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  </div>
+);
+
+// Services Tab
+const ServicesTab: React.FC<{
+  services: Service[];
+  barberId: string;
+  onEdit: (section: string, data: any) => void;
+  isEditing: boolean;
+  editData: any;
+  onSave: () => void;
+  onCancel: () => void;
+  onEditDataChange: (data: any) => void;
+  onDataUpdate: () => void;
+}> = ({ services, barberId, onEdit, isEditing, editData, onSave, onCancel, onEditDataChange, onDataUpdate }) => (
+  <div className="space-y-6">
+    <div className="flex justify-between items-center">
+      <h2 className="text-3xl font-bold">Serviços</h2>
+      <button
+        onClick={() => onEdit('services', { name: '', price: 0 })}
+        className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition duration-300"
+      >
+        Adicionar Serviço
+      </button>
+    </div>
+
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {services.map(service => (
+        <div key={service.id} className="bg-gray-800 rounded-lg p-4">
+          <h3 className="text-lg font-semibold">{service.name}</h3>
+          <p className="text-2xl font-bold text-red-500">R$ {service.price.toFixed(2)}</p>
+          <div className="mt-4 flex space-x-2">
+            <button
+              onClick={() => onEdit('services', service)}
+              className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition duration-300"
+            >
+              Editar
+            </button>
+            <button
+              onClick={async () => {
+                if (confirm('Tem certeza que deseja deletar este serviço?')) {
+                  const success = await FirestoreService.deleteService(barberId, service.id);
+                  if (success) {
+                    alert('✅ Serviço deletado com sucesso!');
+                    onDataUpdate();
+                  } else {
+                    alert('❌ Erro ao deletar serviço');
+                  }
+                }
+              }}
+              className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700 transition duration-300"
+            >
+              Deletar
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+
+    {isEditing && (
+      <div className="bg-gray-800 rounded-lg p-6">
+        <h3 className="text-xl font-bold mb-4">Editar Serviço</h3>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Nome do Serviço</label>
+            <input
+              type="text"
+              value={editData.name || ''}
+              onChange={(e) => onEditDataChange({...editData, name: e.target.value})}
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Preço</label>
+            <input
+              type="number"
+              step="0.01"
+              value={editData.price || ''}
+              onChange={(e) => onEditDataChange({...editData, price: parseFloat(e.target.value)})}
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+            />
+          </div>
+          
+          <div className="flex space-x-4">
+            <button
+              onClick={onSave}
+              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition duration-300"
+            >
+              Salvar
+            </button>
+            <button
+              onClick={onCancel}
+              className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition duration-300"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+  </div>
+);
+
+// Promotions Tab
+const PromotionsTab: React.FC<{
+  promotions: Promotion[];
+  onEdit: (section: string, data: any) => void;
+  isEditing: boolean;
+  editData: any;
+  onSave: () => void;
+  onCancel: () => void;
+  onEditDataChange: (data: any) => void;
+}> = ({ promotions, onEdit, isEditing, editData, onSave, onCancel, onEditDataChange }) => (
+  <div className="space-y-6">
+    <div className="flex justify-between items-center">
+      <h2 className="text-3xl font-bold">Promoções</h2>
+      <button
+        onClick={() => onEdit('promotions', { title: '', description: '' })}
+        className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition duration-300"
+      >
+        Adicionar Promoção
+      </button>
+    </div>
+
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {promotions.map(promotion => (
+        <div key={promotion.id} className="bg-gray-800 rounded-lg p-4 border-l-4 border-red-600">
+          <h3 className="text-lg font-semibold">{promotion.title}</h3>
+          <p className="text-gray-300 mt-2">{promotion.description}</p>
+          <div className="mt-4 flex space-x-2">
+            <button
+              onClick={() => onEdit('promotions', promotion)}
+              className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition duration-300"
+            >
+              Editar
+            </button>
+            <button
+              onClick={() => console.log('Deletar promoção:', promotion.id)}
+              className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700 transition duration-300"
+            >
+              Deletar
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+
+    {isEditing && (
+      <div className="bg-gray-800 rounded-lg p-6">
+        <h3 className="text-xl font-bold mb-4">Editar Promoção</h3>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Título</label>
+            <input
+              type="text"
+              value={editData.title || ''}
+              onChange={(e) => onEditDataChange({...editData, title: e.target.value})}
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Descrição</label>
+            <textarea
+              value={editData.description || ''}
+              onChange={(e) => onEditDataChange({...editData, description: e.target.value})}
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+              rows={3}
+            />
+          </div>
+          
+          <div className="flex space-x-4">
+            <button
+              onClick={onSave}
+              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition duration-300"
+            >
+              Salvar
+            </button>
+            <button
+              onClick={onCancel}
+              className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition duration-300"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+  </div>
+);
+
+// Gallery Tab
+const GalleryTab: React.FC<{
+  images: GalleryImage[];
+  onEdit: (section: string, data: any) => void;
+  isEditing: boolean;
+  editData: any;
+  onSave: () => void;
+  onCancel: () => void;
+  onEditDataChange: (data: any) => void;
+}> = ({ images, onEdit, isEditing, editData, onSave, onCancel, onEditDataChange }) => (
+  <div className="space-y-6">
+    <div className="flex justify-between items-center">
+      <h2 className="text-3xl font-bold">Galeria</h2>
+      <button
+        onClick={() => onEdit('gallery', { src: '', alt: '' })}
+        className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition duration-300"
+      >
+        Adicionar Imagem
+      </button>
+    </div>
+
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      {images.map(image => (
+        <div key={image.id} className="bg-gray-800 rounded-lg overflow-hidden">
+          <img 
+            src={image.src} 
+            alt={image.alt}
+            className="w-full h-32 object-cover"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.src = 'https://via.placeholder.com/300x200/6b7280/ffffff?text=Imagem';
+            }}
+          />
+          <div className="p-3">
+            <p className="text-sm text-gray-300">{image.alt}</p>
+            <div className="mt-2 flex space-x-2">
+              <button
+                onClick={() => onEdit('gallery', image)}
+                className="bg-blue-600 text-white px-2 py-1 rounded text-xs hover:bg-blue-700 transition duration-300"
+              >
+                Editar
+              </button>
+              <button
+                onClick={() => console.log('Deletar imagem:', image.id)}
+                className="bg-red-600 text-white px-2 py-1 rounded text-xs hover:bg-red-700 transition duration-300"
+              >
+                Deletar
+              </button>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+
+    {isEditing && (
+      <div className="bg-gray-800 rounded-lg p-6">
+        <h3 className="text-xl font-bold mb-4">Editar Imagem</h3>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">URL da Imagem</label>
+            <input
+              type="text"
+              value={editData.src || ''}
+              onChange={(e) => onEditDataChange({...editData, src: e.target.value})}
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Descrição</label>
+            <input
+              type="text"
+              value={editData.alt || ''}
+              onChange={(e) => onEditDataChange({...editData, alt: e.target.value})}
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+            />
+          </div>
+          
+          <div className="flex space-x-4">
+            <button
+              onClick={onSave}
+              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition duration-300"
+            >
+              Salvar
+            </button>
+            <button
+              onClick={onCancel}
+              className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition duration-300"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+  </div>
+);
+
+// Appointments Tab
+const AppointmentsTab: React.FC<{
+  appointments: Appointment[];
+  onDataUpdate: () => void;
+}> = ({ appointments, onDataUpdate }) => (
+  <div className="space-y-6">
+    <h2 className="text-3xl font-bold">Agendamentos</h2>
+    
+    <div className="bg-gray-800 rounded-lg p-6">
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-xl font-bold">Todos os Agendamentos</h3>
+        <div className="flex space-x-2">
+          <button className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition duration-300">
+            Pendentes
+          </button>
+          <button className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 transition duration-300">
+            Confirmados
+          </button>
+        </div>
+      </div>
+      
+      {appointments.length > 0 ? (
+        <div className="space-y-4">
+          {appointments.map(appointment => (
+            <div key={appointment.id} className="bg-gray-700 p-4 rounded-lg flex justify-between items-center">
+              <div className="flex-1">
+                <div className="flex items-center space-x-4">
+                  <div>
+                    <p className="font-bold text-lg">{appointment.clientName}</p>
+                    <p className="text-sm text-gray-300">
+                      {appointment.service?.name || 'Serviço não especificado'} - R$ {appointment.service?.price?.toFixed(2) || '0.00'}
+                    </p>
+                  </div>
+                  <div className="text-sm text-gray-400">
+                    <p>{new Date(appointment.date).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</p>
+                    <p>{appointment.time}</p>
+                  </div>
+                  <div className="text-sm text-gray-400">
+                    <p>WhatsApp: {appointment.clientWhatsapp}</p>
+                    <p>Pagamento: {appointment.paymentMethod}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                  appointment.status === 'Confirmado' ? 'bg-green-600' : 'bg-yellow-600'
+                }`}>
+                  {appointment.status}
+                </span>
+                <button
+                  onClick={() => console.log('Confirmar agendamento:', appointment.id)}
+                  className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 transition duration-300"
+                >
+                  Confirmar
+                </button>
+                <button
+                  onClick={() => console.log('Cancelar agendamento:', appointment.id)}
+                  className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700 transition duration-300"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-gray-400 text-center py-8">Nenhum agendamento encontrado.</p>
+      )}
+    </div>
+  </div>
+);
+
 // COMPONENTE PRINCIPAL
 const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [barberData, setBarberData] = useState<BarberData | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [user, setUser] = useState<any | null>(null);
   const [view, setView] = useState<'client' | 'admin'>('client');
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [loginError, setLoginError] = useState('');
   const [useMockData, setUseMockData] = useState(false);
 
+  // Helper para lidar com erros do Firestore de forma centralizada
+  const handleFirestoreError = useCallback((error: any) => {
+    console.error('Firestore Error:', error);
+    if (error.code === 'unavailable') {
+      setErrorMessage(APP_CONFIG.ERROR_MESSAGES.CONNECTION_ERROR);
+    } else {
+      setErrorMessage(APP_CONFIG.ERROR_MESSAGES.FIREBASE_ERROR);
+    }
+    setBarberData(null);
+  }, []);
+
   // Carregar dados do barbeiro
-  const loadBarberData = useCallback(async (barberId: string) => {
+  const loadBarberData = useCallback(async (barberId: string | null) => {
+    if (!barberId) {
+      setBarberData(null);
+      return;
+    }
+    
     try {
       const data = await FirestoreService.loadBarberData(barberId);
+      setBarberData(data);
       if (data) {
-        setBarberData(data);
         setUseMockData(false);
-      } else {
-        // Fallback para dados mock em desenvolvimento
-        console.log('Usando dados mock para desenvolvimento');
-        setBarberData(createMockData());
-        setUseMockData(true);
+        setErrorMessage(null); // Limpa erros anteriores em caso de sucesso
       }
     } catch (error) {
-      console.error('Erro ao carregar dados:', error);
-      // Fallback para dados mock
-      setBarberData(createMockData());
-      setUseMockData(true);
+      handleFirestoreError(error);
     }
-  }, []);
+  }, [handleFirestoreError]);
 
   // Inicialização
   useEffect(() => {
     const initializeApp = async () => {
-      try {
-        // Observar estado de autenticação
-        const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
+      console.log('🚀 Inicializando aplicação...');
+      setLoading(true);
+      setErrorMessage(null); // Reseta o erro ao inicializar
+
+      // Teste de conectividade com Firebase
+      debugLog('🔧 Testando conectividade com Firebase...');
+      const isConnected = await testFirebaseConnection();
+      if (!isConnected) {
+        console.error('❌ Falha na conexão com Firebase');
+        setErrorMessage(APP_CONFIG.ERROR_MESSAGES.CONNECTION_ERROR);
+        setLoading(false);
+        return;
+      }
+
+      const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
+        try {
+          console.log('👤 Estado de autenticação:', currentUser ? 'Logado' : 'Não logado');
           setUser(currentUser);
           
           if (currentUser) {
-            // Usuário logado - carregar dados do barbeiro
-            await loadBarberData(currentUser.uid);
-            setView('admin');
+            console.log('🔐 Usuário logado, carregando painel administrativo...');
+            console.log('👤 UID do usuário logado:', currentUser.uid);
+            
+            // Buscar barbeiro pelo userID
+            const barberId = await FirestoreService.findBarberByUserId(currentUser.uid);
+            if (barberId) {
+              console.log('✅ Barbeiro encontrado para o usuário:', barberId);
+              await loadBarberData(barberId);
+              setView('admin');
+            } else {
+              console.log('⚠️ Nenhum barbeiro encontrado para este usuário, usando dados mock');
+              setBarberData(createMockData());
+              setUseMockData(true);
+              setView('admin');
+            }
           } else {
+            console.log('🌐 Usuário não logado, carregando portal do cliente...');
             // Usuário não logado - carregar por slug público
             setView('client');
             const slug = getBarberSlugFromUrl();
+            console.log('🔍 Slug da URL:', slug);
             
             if (slug) {
-              try {
-                const barberId = await FirestoreService.findBarberBySlug(slug);
-                if (barberId) {
-                  await loadBarberData(barberId);
-                } else {
-                  // Slug não encontrado, usar dados mock
-                  setBarberData(createMockData());
-                  setUseMockData(true);
-                }
-              } catch (error) {
-                // Erro ao buscar slug, usar dados mock
+              console.log('🔎 Buscando barbeiro por slug:', slug);
+              const barberId = await FirestoreService.findBarberBySlug(slug);
+              console.log('🆔 ID do barbeiro encontrado:', barberId);
+              
+              if (barberId) {
+                await loadBarberData(barberId);
+              } else {
+                // Slug não encontrado, usar dados mock
+                console.log('⚠️ Slug não encontrado no Firebase, usando dados mock para desenvolvimento.');
                 setBarberData(createMockData());
                 setUseMockData(true);
               }
             } else {
-              // Sem slug, usar dados mock
+              // Sem slug, usar dados mock para desenvolvimento
+              console.log('⚠️ Nenhum slug na URL, usando dados mock para desenvolvimento.');
               setBarberData(createMockData());
               setUseMockData(true);
             }
           }
-          
+        } catch (error) {
+          console.error('❌ Erro na inicialização:', error);
+          handleFirestoreError(error);
+        } finally {
           setLoading(false);
-        });
+          console.log('✅ Inicialização concluída');
+        }
+      });
 
-        return () => unsubscribe();
-      } catch (error) {
-        console.error('Erro na inicialização:', error);
-        setBarberData(createMockData());
-        setUseMockData(true);
-        setLoading(false);
-      }
+      return () => unsubscribe();
     };
 
     initializeApp();
-  }, [loadBarberData]);
+  }, [loadBarberData, handleFirestoreError]);
 
   // Handlers
   const handleAdminAreaClick = () => {
@@ -698,24 +1565,62 @@ const App: React.FC = () => {
     return <LoadingSpinner message="Carregando barbearia..." />;
   }
 
+  // Renderiza a tela de erro se houver uma mensagem de erro
+  if (errorMessage) {
+    return <ConnectionError message={errorMessage} />;
+  }
+
+  // Se não houver dados E não houver erro, usar dados mock como fallback
   if (!barberData) {
-    return <NotFound />;
+    console.log('⚠️ Nenhum dado carregado, usando fallback para dados mock');
+    setBarberData(createMockData());
+    setUseMockData(true);
+    // Retornar loading enquanto carrega os dados mock
+    return <LoadingSpinner message="Carregando dados de demonstração..." />;
   }
 
   // Vista administrativa
   if (view === 'admin' && user) {
-    return (
-      <AdminPanel 
-        barberData={barberData} 
-        onLogout={handleLogout}
-        onDataUpdate={() => loadBarberData(user.uid)}
-      />
-    );
+    // Permitir acesso com dados mock ou se for o barbeiro correto
+    // Verificar se o user.uid corresponde ao userID do barbeiro ou ao ID do documento
+    const isAuthorized = useMockData || 
+                        user.uid === barberData.id || 
+                        (barberData.profile as any).userID === user.uid;
+    
+    if (isAuthorized) {
+       return (
+        <AdminPanel 
+          barberData={barberData} 
+          onLogout={handleLogout}
+          onDataUpdate={() => loadBarberData(barberData.id)}
+        />
+      );
+    }
+    
+    console.log('❌ Usuário não autorizado. user.uid:', user.uid, 'barberData.id:', barberData.id, 'userID:', (barberData.profile as any).userID);
+    handleLogout();
+    return <LoadingSpinner message="Redirecionando..." />;
   }
 
   // Vista do cliente
   return (
     <div className="bg-white">
+      <DebugPanel 
+        user={user}
+        barberData={barberData}
+        view={view}
+        useMockData={useMockData}
+        onRefreshData={() => {
+          if (barberData && !useMockData) {
+            loadBarberData(barberData.id);
+          } else {
+            window.location.reload();
+          }
+        }}
+        onSetUser={setUser}
+        onSetView={setView}
+      />
+      
       {showLoginModal && (
         <LoginModal
           onClose={() => setShowLoginModal(false)}
@@ -749,7 +1654,19 @@ const App: React.FC = () => {
       
       {useMockData && (
         <div className="fixed bottom-4 right-4 bg-yellow-500 text-black px-4 py-2 rounded-lg text-sm font-bold">
-          Modo de Desenvolvimento (Dados Mock)
+          <div className="flex flex-col space-y-2">
+            <span>Modo de Desenvolvimento (Dados Mock)</span>
+            <button
+              onClick={() => {
+                console.log('🧪 Testando painel administrativo com dados mock...');
+                setView('admin');
+                setUser({ uid: 'mock-user', email: 'teste@exemplo.com' });
+              }}
+              className="bg-red-600 text-white px-3 py-1 rounded text-xs hover:bg-red-700 transition duration-300"
+            >
+              Testar Painel Admin
+            </button>
+          </div>
         </div>
       )}
     </div>

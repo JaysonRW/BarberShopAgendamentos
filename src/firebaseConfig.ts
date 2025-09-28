@@ -19,12 +19,22 @@ const firebaseConfig = {
 };
 
 // VERSÃO COMPATÍVEL (sintaxe antiga)
+let app: firebase.app.App;
 if (!firebase.apps.length) {
-  firebase.initializeApp(firebaseConfig);
+  app = firebase.initializeApp(firebaseConfig);
+  console.log('🔥 Firebase inicializado com sucesso');
+} else {
+  app = firebase.app();
+  console.log('🔥 Firebase já estava inicializado');
 }
 
 export const auth = firebase.auth();
 export const db = firebase.firestore();
+
+// Configurações adicionais para melhor performance
+db.settings({
+  cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED
+});
 
 // VERSÃO MODERNA (descomente se quiser migrar)
 // const app = initializeApp(firebaseConfig);
