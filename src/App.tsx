@@ -45,15 +45,31 @@ const scrollToSection = (sectionId: string) => {
 
 // Função para obter slug da URL agora está em config.ts
 
-// === ÍCONES SVG (mantidos do código original) ===
-const CalendarIcon = ({className = "h-5 w-5"}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" /></svg>;
-const ClockIcon = ({className = "h-5 w-5"}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.414-1.415L11 9.586V6z" clipRule="evenodd" /></svg>;
+// === ÍCONES SVG (reutilizáveis) ===
+const Icon = ({ path, className = "h-5 w-5" }: { path: string, className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 20 20" fill="currentColor">
+    <path fillRule="evenodd" d={path} clipRule="evenodd" />
+  </svg>
+);
+
+const CalendarIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" />;
+const ClockIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.414-1.415L11 9.586V6z" />;
+const ScissorsIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M14.293 5.293a1 1 0 011.414 1.414l-10 10a1 1 0 01-1.414-1.414l10-10zM5.707 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 1.414L7.121 6.707a1 1 0 01-1.414 0zM9 12a1 1 0 10-2 0 1 1 0 002 0zm-1-5.414l-3-3a1 1 0 10-1.414 1.414L6.586 8H5a1 1 0 000 2h2.586l4 4H10a1 1 0 100 2h1a1 1 0 001-1v-1.586l-4-4V9a1 1 0 00-1-1z" />;
+const CreditCardIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V8a2 2 0 00-2-2h-5L9 4H4zm2 2h2v2H6V6zm4 0h2v2h-2V6zM6 9h2v2H6V9zm4 0h2v2h-2V9z" />;
+const MapPinIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M5.05 4.05a7 7 0 119.9 9.9L10 20l-4.95-5.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" />;
+
+// Ícones específicos
 const WhatsAppIcon = ({className = "h-5 w-5 mr-2"}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 20 20" fill="currentColor"><path d="M10.3 2.2C5.7 2.2 2 5.9 2 10.5c0 1.6.4 3.1 1.3 4.4L2 20l5.2-1.3c1.3.8 2.8 1.2 4.4 1.2 4.6 0 8.3-3.7 8.3-8.3S14.9 2.2 10.3 2.2zM10.3 18.1c-1.4 0-2.8-.4-4-1.2l-.3-.2-3 .8.8-2.9-.2-.3c-.8-1.2-1.3-2.7-1.3-4.2 0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5-2.9 6.5-6.5 6.5zm3.2-4.9c-.2-.1-1.1-.5-1.3-.6-.2-.1-.3-.1-.5.1s-.5.6-.6.7c-.1.1-.2.2-.4.1-.2 0-.8-.3-1.5-.9s-1.1-1.3-1.2-1.5c-.1-.2 0-.3.1-.4l.3-.3c.1-.1.1-.2.2-.3.1-.1 0-.3-.1-.4-.1-.1-.5-1.1-.6-1.5-.2-.4-.3-.3-.5-.3h-.4c-.2 0-.4.1-.6.3s-.7.7-.7 1.6.7 1.9 1.4 2.6c1.1 1.1 2.1 1.7 3.3 1.7.2 0 .4 0 .6-.1.6-.2 1.1-.7 1.2-1.3.1-.6.1-1.1 0-1.2-.1-.1-.3-.2-.5-.3z" /></svg>;
-const ScissorsIcon = ({className = "h-5 w-5"}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M14.293 5.293a1 1 0 011.414 1.414l-10 10a1 1 0 01-1.414-1.414l10-10zM5.707 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 1.414L7.121 6.707a1 1 0 01-1.414 0zM9 12a1 1 0 10-2 0 1 1 0 002 0zm-1-5.414l-3-3a1 1 0 10-1.414 1.414L6.586 8H5a1 1 0 000 2h2.586l4 4H10a1 1 0 100 2h1a1 1 0 001-1v-1.586l-4-4V9a1 1 0 00-1-1z" clipRule="evenodd" /></svg>;
-const CreditCardIcon = ({className = "h-5 w-5"}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 20 20" fill="currentColor"><path d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V8a2 2 0 00-2-2h-5L9 4H4zm2 2h2v2H6V6zm4 0h2v2h-2V6zM6 9h2v2H6V9zm4 0h2v2h-2V9z" /></svg>;
-const MapPinIcon = ({className = "h-5 w-5"}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 20l-4.95-5.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" /></svg>;
-const LogoutIcon = ({className = "h-5 w-5 mr-2"}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd" /></svg>;
+const LogoutIcon = ({className = "h-5 w-5 mr-2"}) => <Icon className={className} path="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" />;
 const UserIcon = ({className = "h-6 w-6"}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>;
+
+// Ícones do Painel Admin
+const DashboardIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M9 2a1 1 0 00-1 1v1a1 1 0 001 1h1a1 1 0 100-2H9zM3 7a1 1 0 011-1h1a1 1 0 110 2H4a1 1 0 01-1-1zM7 11a1 1 0 100 2h1a1 1 0 100-2H7zM3 13a1 1 0 011-1h1a1 1 0 110 2H4a1 1 0 01-1-1zm12-4a1 1 0 100 2h1a1 1 0 100-2h-1zM9 15a1 1 0 100 2h1a1 1 0 100-2H9zm6-4a1 1 0 100 2h1a1 1 0 100-2h-1zM6 2a1 1 0 00-1 1v1a1 1 0 102 0V3a1 1 0 00-1-1zm11 11a1 1 0 100 2h1a1 1 0 100-2h-1z" />;
+const ShopIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M4 4h16v12H4V4zm8 9a3 3 0 100-6 3 3 0 000 6z" />;
+const TagIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M9 2a1 1 0 000 2h2a1 1 0 100-2H9zM3 5a2 2 0 012-2h4a2 2 0 012 2v2a2 2 0 01-2 2H5a2 2 0 01-2-2V5zm1.5 0a1.5 1.5 0 10-3 0 1.5 1.5 0 003 0z" />;
+const GalleryIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M3 3a1 1 0 00-1 1v12a1 1 0 001 1h12a1 1 0 001-1V4a1 1 0 00-1-1H3zm1 2h10v8H4V5zm2 2a1 1 0 100 2h6a1 1 0 100-2H6z" />;
+const ShareIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" />;
+const LinkIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M10 3a1 1 0 01.707.293l3 3a1 1 0 01-1.414 1.414L10 5.414 7.707 7.707a1 1 0 01-1.414-1.414l3-3A1 1 0 0110 3zm-3.707 9.293a1 1 0 011.414 0L10 14.586l2.293-2.293a1 1 0 011.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" />;
 
 
 // === COMPONENTES ===
@@ -673,7 +689,7 @@ const AdminPanel: React.FC<{
   onLogout: () => void;
   onDataUpdate: () => void;
 }> = ({ barberData, onLogout, onDataUpdate }) => {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'profile' | 'services' | 'promotions' | 'gallery' | 'appointments'>('appointments');
+  const [activeTab, setActiveTab] = useState<'profile' | 'dashboard' | 'services' | 'promotions' | 'gallery' | 'appointments'>('profile');
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<any>({});
 
@@ -789,17 +805,17 @@ const AdminPanel: React.FC<{
           <div className="lg:w-64">
             <nav className="space-y-2">
               {[
-                { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-                { id: 'profile', label: 'Perfil da Barbearia', icon: '🏪' },
-                { id: 'services', label: 'Serviços', icon: '✂️' },
-                { id: 'promotions', label: 'Promoções', icon: '🎯' },
-                { id: 'gallery', label: 'Galeria', icon: '🖼️' },
-                { id: 'appointments', label: 'Agendamentos', icon: '📅' }
+                { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
+                { id: 'profile', label: 'Perfil da Barbearia', icon: <ShopIcon /> },
+                { id: 'services', label: 'Serviços', icon: <ScissorsIcon /> },
+                { id: 'promotions', label: 'Promoções', icon: <TagIcon /> },
+                { id: 'gallery', label: 'Galeria', icon: <GalleryIcon /> },
+                { id: 'appointments', label: 'Agendamentos', icon: <CalendarIcon /> }
               ].map(tab => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`w-full text-left px-4 py-3 rounded-lg transition duration-200 ${
+                  className={`w-full flex items-center text-left px-4 py-3 rounded-lg transition duration-200 ${
                     activeTab === tab.id 
                       ? 'bg-red-600 text-white' 
                       : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
@@ -944,111 +960,144 @@ const ProfileTab: React.FC<{
   onSave: () => void;
   onCancel: () => void;
   onEditDataChange: (data: any) => void;
-}> = ({ barberData, onEdit, isEditing, editData, onSave, onCancel, onEditDataChange }) => (
-  <div className="space-y-6">
-    <div className="flex justify-between items-center">
-      <h2 className="text-3xl font-bold">Perfil da Barbearia</h2>
-      {!isEditing && (
-        <button
-          onClick={() => onEdit('profile', barberData.profile)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition duration-300"
-        >
-          Editar Perfil
-        </button>
-      )}
-    </div>
+}> = ({ barberData, onEdit, isEditing, editData, onSave, onCancel, onEditDataChange }) => {
+  const [isCopied, setIsCopied] = useState(false);
 
-    <div className="bg-gray-800 rounded-lg p-6">
-      {isEditing ? (
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">Nome da Barbearia</label>
-            <input
-              type="text"
-              value={editData.shopName || ''}
-              onChange={(e) => onEditDataChange({...editData, shopName: e.target.value})}
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-            />
+  const portalUrl = `${window.location.origin}/${barberData.profile.slug}`;
+
+  const handleShare = () => {
+    navigator.clipboard.writeText(portalUrl).then(() => {
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    });
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-3xl font-bold">Perfil da Barbearia</h2>
+        {!isEditing && (
+          <button
+            onClick={() => onEdit('profile', barberData.profile)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition duration-300"
+          >
+            Editar Perfil
+          </button>
+        )}
+      </div>
+
+      <div className="bg-gray-800 rounded-lg p-8">
+        {isEditing ? (
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Nome da Barbearia</label>
+              <input
+                type="text"
+                value={editData.shopName || ''}
+                onChange={(e) => onEditDataChange({...editData, shopName: e.target.value})}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Localização</label>
+              <input
+                type="text"
+                value={editData.location || ''}
+                onChange={(e) => onEditDataChange({...editData, location: e.target.value})}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">WhatsApp</label>
+              <input
+                type="text"
+                value={editData.whatsappNumber || ''}
+                onChange={(e) => onEditDataChange({...editData, whatsappNumber: e.target.value})}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Slug do Portal</label>
+              <input
+                type="text"
+                value={editData.slug || ''}
+                onChange={(e) => onEditDataChange({...editData, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')})}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+              />
+              <p className="text-xs text-gray-400 mt-1">O final do link do seu portal. Use apenas letras, números e hifens.</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">URL do Logo</label>
+              <input
+                type="text"
+                value={editData.logoUrl || ''}
+                onChange={(e) => onEditDataChange({...editData, logoUrl: e.target.value})}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+              />
+            </div>
+            
+            <div className="flex space-x-4 pt-4">
+              <button
+                onClick={onSave}
+                className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition duration-300"
+              >
+                Salvar
+              </button>
+              <button
+                onClick={onCancel}
+                className="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-500 transition duration-300"
+              >
+                Cancelar
+              </button>
+            </div>
           </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">Localização</label>
-            <input
-              type="text"
-              value={editData.location || ''}
-              onChange={(e) => onEditDataChange({...editData, location: e.target.value})}
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">WhatsApp</label>
-            <input
-              type="text"
-              value={editData.whatsappNumber || ''}
-              onChange={(e) => onEditDataChange({...editData, whatsappNumber: e.target.value})}
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">URL do Logo</label>
-            <input
-              type="text"
-              value={editData.logoUrl || ''}
-              onChange={(e) => onEditDataChange({...editData, logoUrl: e.target.value})}
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-            />
-          </div>
-          
-          <div className="flex space-x-4">
-            <button
-              onClick={onSave}
-              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition duration-300"
-            >
-              Salvar
-            </button>
-            <button
-              onClick={onCancel}
-              className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition duration-300"
-            >
-              Cancelar
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          <div className="flex items-center space-x-4">
+        ) : (
+          <div className="flex flex-col md:flex-row items-start gap-8">
             <img 
               src={barberData.profile.logoUrl} 
               alt="Logo" 
-              className="w-20 h-20 rounded-lg object-cover"
+              className="w-24 h-24 rounded-lg object-cover flex-shrink-0"
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
-                target.src = 'https://via.placeholder.com/80x80.png?text=LOGO';
+                target.src = 'https://via.placeholder.com/96x96.png?text=LOGO';
               }}
             />
-            <div>
-              <h3 className="text-xl font-bold">{barberData.profile.shopName}</h3>
-              <p className="text-gray-400">{barberData.profile.location}</p>
+            <div className="flex-grow w-full">
+              <h3 className="text-2xl font-bold">{barberData.profile.shopName}</h3>
+              <p className="text-gray-400 mt-1">{barberData.profile.location}</p>
+
+              <div className="mt-6 pt-6 border-t border-gray-700 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-400">WhatsApp</label>
+                  <p className="text-white mt-1">{barberData.profile.whatsappNumber}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-400">Link do Portal</label>
+                  <div className="flex items-center gap-3 mt-1">
+                    <a href={portalUrl} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:text-cyan-300 break-all">
+                      {barberData.profile.slug}
+                    </a>
+                    <button
+                      onClick={handleShare}
+                      className="bg-gray-700 text-gray-300 px-3 py-1 rounded-lg text-sm hover:bg-gray-600 transition duration-300"
+                    >
+                      {isCopied ? 'Copiado!' : 'Compartilhar'}
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-300">WhatsApp</label>
-              <p className="text-white">{barberData.profile.whatsappNumber}</p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-300">Slug</label>
-              <p className="text-white">{barberData.profile.slug}</p>
-            </div>
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
-  </div>
-);
+  );
+};
+
 
 // Services Tab
 const ServicesTab: React.FC<{
