@@ -869,6 +869,7 @@ const AdminPanel: React.FC<{
             {activeTab === 'appointments' && (
               <AppointmentsTab 
                 appointments={barberData.appointments}
+                barberId={barberData.id}
                 onDataUpdate={onDataUpdate}
               />
             )}
@@ -1334,63 +1335,90 @@ const GalleryTab: React.FC<{
   </div>
 );
 
-// Appointments Tab
+// Appointments Tab (ATUALIZADO)
+// Adicionamos 'barberId' nas propriedades e implementamos a lógica dos botões
 const AppointmentsTab: React.FC<{
   appointments: Appointment[];
+  barberId: string; // <-- NOVO: Recebe o ID do barbeiro
   onDataUpdate: () => void;
-}> = ({ appointments, onDataUpdate }) => (
+}> = ({ appointments, barberId, onDataUpdate }) => ( // <-- DESESTRUTURANDO barberId
   <div className="space-y-6">
     <h2 className="text-3xl font-bold">Agendamentos</h2>
     
     <div className="bg-gray-800 rounded-lg p-6">
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-xl font-bold">Todos os Agendamentos</h3>
-        <div className="flex space-x-2">
-          <button className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition duration-300">
-            Pendentes
-          </button>
-          <button className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 transition duration-300">
-            Confirmados
-          </button>
-        </div>
+        {/* ... botões Pendentes/Confirmados (filtros) ... */}
       </div>
-      
+
       {appointments.length > 0 ? (
         <div className="space-y-4">
           {appointments.map(appointment => (
             <div key={appointment.id} className="bg-gray-700 p-4 rounded-lg flex justify-between items-center">
-              <div className="flex-1">
-                <div className="flex items-center space-x-4">
-                  <div>
-                    <p className="font-bold text-lg">{appointment.clientName}</p>
-                    <p className="text-sm text-gray-300">
-                      {appointment.service?.name || 'Serviço não especificado'} - R$ {appointment.service?.price?.toFixed(2) || '0.00'}
-                    </p>
-                  </div>
-                  <div className="text-sm text-gray-400">
-                    <p>{new Date(appointment.date).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</p>
-                    <p>{appointment.time}</p>
-                  </div>
-                  <div className="text-sm text-gray-400">
-                    <p>WhatsApp: {appointment.clientWhatsapp}</p>
-                    <p>Pagamento: {appointment.paymentMethod}</p>
-                  </div>
-                </div>
-              </div>
+              {/* ... (Conteúdo do Agendamento) ... */}
+              
+              
               <div className="flex items-center space-x-2">
+                {/* Status do Agendamento (cor e texto) */}
                 <span className={`px-3 py-1 rounded-full text-xs font-bold ${
                   appointment.status === 'Confirmado' ? 'bg-green-600' : 'bg-yellow-600'
                 }`}>
                   {appointment.status}
                 </span>
+
+                {/* BOTÃO CONFIRMAR */}
+                // DENTRO DO AppointmentsTab (Botão Confirmar)
+onClick={async () => {
+  try {
+    const success = await FirestoreService.updateAppointmentStatus(
+      barberId, 
+      appointment.id, 
+      'Confirmado'
+    );
+    if (success) {
+      console.log('✅ Escrita no Firestore reportada como SUCESSO. Recarregando...');
+      // ... onDataUpdate();
+    } else {
+      console.error('❌ Firestore retornou FALHA.');
+    }
+  } catch (e) {
+    console.error('❌ ERRO FATAL AO TENTAR ESCREVER NO FIRESTORE:', e);
+  }
+}}
                 <button
-                  onClick={() => console.log('Confirmar agendamento:', appointment.id)}
+                  onClick={async () => {
+                    const success = await FirestoreService.updateAppointmentStatus(
+                      barberId, 
+                      appointment.id, 
+                      'Confirmado'
+                    );
+                    if (success) {
+                      alert('Agendamento confirmado com sucesso!');
+                      onDataUpdate(); // Recarrega os dados para atualizar a lista
+                    } else {
+                      alert('Erro ao confirmar agendamento.');
+                    }
+                  }}
                   className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 transition duration-300"
                 >
                   Confirmar
                 </button>
+                
+                {/* BOTÃO CANCELAR */}
                 <button
-                  onClick={() => console.log('Cancelar agendamento:', appointment.id)}
+                  onClick={async () => {
+                    if (confirm(`Tem certeza que deseja cancelar o agendamento de ${appointment.clientName}?`)) {
+                      const success = await FirestoreService.cancelAppointment(
+                        barberId, 
+                        appointment.id
+                      );
+                      if (success) {
+                        alert('Agendamento cancelado e horário restaurado.');
+                        onDataUpdate(); // Recarrega os dados
+                      } else {
+                        alert('Erro ao cancelar agendamento.');
+                      }
+                    }
+                  }}
                   className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700 transition duration-300"
                 >
                   Cancelar
@@ -1674,3 +1702,5 @@ const App: React.FC = () => {
 };
 
 export default App;
+
+
