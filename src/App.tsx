@@ -46,13 +46,15 @@ const scrollToSection = (sectionId: string) => {
 // Função para obter slug da URL agora está em config.ts
 
 // === ÍCONES SVG (mantidos do código original) ===
-const CalendarIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" /></svg>;
-const ClockIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.414-1.415L11 9.586V6z" clipRule="evenodd" /></svg>;
+const CalendarIcon = ({className = "h-5 w-5"}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" /></svg>;
+const ClockIcon = ({className = "h-5 w-5"}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.414-1.415L11 9.586V6z" clipRule="evenodd" /></svg>;
 const WhatsAppIcon = ({className = "h-5 w-5 mr-2"}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 20 20" fill="currentColor"><path d="M10.3 2.2C5.7 2.2 2 5.9 2 10.5c0 1.6.4 3.1 1.3 4.4L2 20l5.2-1.3c1.3.8 2.8 1.2 4.4 1.2 4.6 0 8.3-3.7 8.3-8.3S14.9 2.2 10.3 2.2zM10.3 18.1c-1.4 0-2.8-.4-4-1.2l-.3-.2-3 .8.8-2.9-.2-.3c-.8-1.2-1.3-2.7-1.3-4.2 0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5-2.9 6.5-6.5 6.5zm3.2-4.9c-.2-.1-1.1-.5-1.3-.6-.2-.1-.3-.1-.5.1s-.5.6-.6.7c-.1.1-.2.2-.4.1-.2 0-.8-.3-1.5-.9s-1.1-1.3-1.2-1.5c-.1-.2 0-.3.1-.4l.3-.3c.1-.1.1-.2.2-.3.1-.1 0-.3-.1-.4-.1-.1-.5-1.1-.6-1.5-.2-.4-.3-.3-.5-.3h-.4c-.2 0-.4.1-.6.3s-.7.7-.7 1.6.7 1.9 1.4 2.6c1.1 1.1 2.1 1.7 3.3 1.7.2 0 .4 0 .6-.1.6-.2 1.1-.7 1.2-1.3.1-.6.1-1.1 0-1.2-.1-.1-.3-.2-.5-.3z" /></svg>;
-const ScissorsIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M14.293 5.293a1 1 0 011.414 1.414l-10 10a1 1 0 01-1.414-1.414l10-10zM5.707 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 1.414L7.121 6.707a1 1 0 01-1.414 0zM9 12a1 1 0 10-2 0 1 1 0 002 0zm-1-5.414l-3-3a1 1 0 10-1.414 1.414L6.586 8H5a1 1 0 000 2h2.586l4 4H10a1 1 0 100 2h1a1 1 0 001-1v-1.586l-4-4V9a1 1 0 00-1-1z" clipRule="evenodd" /></svg>;
-const CreditCardIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V8a2 2 0 00-2-2h-5L9 4H4zm2 2h2v2H6V6zm4 0h2v2h-2V6zM6 9h2v2H6V9zm4 0h2v2h-2V9z" /></svg>;
-const MapPinIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 20l-4.95-5.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" /></svg>;
-const LogoutIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd" /></svg>;
+const ScissorsIcon = ({className = "h-5 w-5"}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M14.293 5.293a1 1 0 011.414 1.414l-10 10a1 1 0 01-1.414-1.414l10-10zM5.707 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 1.414L7.121 6.707a1 1 0 01-1.414 0zM9 12a1 1 0 10-2 0 1 1 0 002 0zm-1-5.414l-3-3a1 1 0 10-1.414 1.414L6.586 8H5a1 1 0 000 2h2.586l4 4H10a1 1 0 100 2h1a1 1 0 001-1v-1.586l-4-4V9a1 1 0 00-1-1z" clipRule="evenodd" /></svg>;
+const CreditCardIcon = ({className = "h-5 w-5"}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 20 20" fill="currentColor"><path d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V8a2 2 0 00-2-2h-5L9 4H4zm2 2h2v2H6V6zm4 0h2v2h-2V6zM6 9h2v2H6V9zm4 0h2v2h-2V9z" /></svg>;
+const MapPinIcon = ({className = "h-5 w-5"}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 20l-4.95-5.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" /></svg>;
+const LogoutIcon = ({className = "h-5 w-5 mr-2"}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd" /></svg>;
+const UserIcon = ({className = "h-6 w-6"}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>;
+
 
 // === COMPONENTES ===
 
@@ -458,7 +460,7 @@ const BookingForm: React.FC<{
           {/* Serviços */}
           <div>
             <label className="block text-gray-800 font-bold mb-3 flex items-center">
-              <ScissorsIcon /> Serviço
+              <ScissorsIcon className="h-5 w-5 mr-2" /> Serviço
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {services.map(service => (
@@ -482,7 +484,7 @@ const BookingForm: React.FC<{
           {/* Datas */}
           <div>
             <label className="block text-gray-800 font-bold mb-3 flex items-center">
-              <CalendarIcon /> Data
+              <CalendarIcon className="h-5 w-5 mr-2" /> Data
             </label>
             <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
               {availableDates.map(date => (
@@ -506,7 +508,7 @@ const BookingForm: React.FC<{
           {formData.date && (
             <div>
               <label className="block text-gray-800 font-bold mb-3 flex items-center">
-                <ClockIcon /> Horário
+                <ClockIcon className="h-5 w-5 mr-2" /> Horário
               </label>
               <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
                 {availableTimes.map(time => (
@@ -556,7 +558,7 @@ const BookingForm: React.FC<{
           {/* Forma de pagamento */}
           <div>
             <label className="block text-gray-800 font-bold mb-3 flex items-center">
-              <CreditCardIcon /> Forma de Pagamento
+              <CreditCardIcon className="h-5 w-5 mr-2" /> Forma de Pagamento
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {['PIX', 'Débito', 'Crédito', 'Dinheiro'].map(method => (
@@ -595,7 +597,7 @@ const Footer: React.FC<{ shopName: string; location: string }> = ({ shopName, lo
     <div className="container mx-auto px-6 text-center">
       <h3 className="text-2xl font-bold uppercase text-white mb-2">{shopName}</h3>
       <p className="flex items-center justify-center mb-4">
-        <MapPinIcon /> {location}
+        <MapPinIcon className="h-5 w-5 mr-2" /> {location}
       </p>
       <p className="text-sm">
         &copy; {new Date().getFullYear()} {shopName}. Todos os direitos reservados.
@@ -671,7 +673,7 @@ const AdminPanel: React.FC<{
   onLogout: () => void;
   onDataUpdate: () => void;
 }> = ({ barberData, onLogout, onDataUpdate }) => {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'profile' | 'services' | 'promotions' | 'gallery' | 'appointments'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'profile' | 'services' | 'promotions' | 'gallery' | 'appointments'>('appointments');
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<any>({});
 
@@ -1335,104 +1337,145 @@ const GalleryTab: React.FC<{
   </div>
 );
 
-// Appointments Tab (ATUALIZADO)
-// Adicionamos 'barberId' nas propriedades e implementamos a lógica dos botões
+// Appointments Tab (ATUALIZADO E REDESENHADO)
 const AppointmentsTab: React.FC<{
   appointments: Appointment[];
-  barberId: string; // <-- NOVO: Recebe o ID do barbeiro
+  barberId: string;
   onDataUpdate: () => void;
-}> = ({ appointments, barberId, onDataUpdate }) => ( // <-- DESESTRUTURANDO barberId
-  <div className="space-y-6">
-    <h2 className="text-3xl font-bold">Agendamentos</h2>
-    
-    <div className="bg-gray-800 rounded-lg p-6">
-      <div className="flex justify-between items-center mb-4">
-        {/* ... botões Pendentes/Confirmados (filtros) ... */}
-      </div>
+}> = ({ appointments, barberId, onDataUpdate }) => {
+  const [filter, setFilter] = useState<'Todos' | 'Pendente' | 'Confirmado'>('Todos');
 
-      {appointments.length > 0 ? (
-        <div className="space-y-4">
-          {appointments.map(appointment => (
-            <div key={appointment.id} className="bg-gray-700 p-4 rounded-lg flex justify-between items-center">
-              {/* ... (Conteúdo do Agendamento) ... */}
-              
-              
-              <div className="flex items-center space-x-2">
-                {/* Status do Agendamento (cor e texto) */}
-                <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                  appointment.status === 'Confirmado' ? 'bg-green-600' : 'bg-yellow-600'
-                }`}>
-                  {appointment.status}
-                </span>
+  const filteredAppointments = useMemo(() => appointments
+    .filter(app => filter === 'Todos' || app.status === filter)
+    .sort((a, b) => {
+      const dateA = new Date(`${a.date}T${a.time}`);
+      const dateB = new Date(`${b.date}T${b.time}`);
+      return dateB.getTime() - dateA.getTime();
+  }), [appointments, filter]);
 
-                {/* BOTÃO CONFIRMAR */}
-                // DENTRO DO AppointmentsTab (Botão Confirmar)
-onClick={async () => {
-  try {
-    const success = await FirestoreService.updateAppointmentStatus(
-      barberId, 
-      appointment.id, 
-      'Confirmado'
-    );
-    if (success) {
-      console.log('✅ Escrita no Firestore reportada como SUCESSO. Recarregando...');
-      // ... onDataUpdate();
-    } else {
-      console.error('❌ Firestore retornou FALHA.');
-    }
-  } catch (e) {
-    console.error('❌ ERRO FATAL AO TENTAR ESCREVER NO FIRESTORE:', e);
-  }
-}}
-                <button
-                  onClick={async () => {
-                    const success = await FirestoreService.updateAppointmentStatus(
-                      barberId, 
-                      appointment.id, 
-                      'Confirmado'
-                    );
-                    if (success) {
-                      alert('Agendamento confirmado com sucesso!');
-                      onDataUpdate(); // Recarrega os dados para atualizar a lista
-                    } else {
-                      alert('Erro ao confirmar agendamento.');
-                    }
-                  }}
-                  className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 transition duration-300"
-                >
-                  Confirmar
-                </button>
-                
-                {/* BOTÃO CANCELAR */}
-                <button
-                  onClick={async () => {
-                    if (confirm(`Tem certeza que deseja cancelar o agendamento de ${appointment.clientName}?`)) {
-                      const success = await FirestoreService.cancelAppointment(
-                        barberId, 
-                        appointment.id
-                      );
-                      if (success) {
-                        alert('Agendamento cancelado e horário restaurado.');
-                        onDataUpdate(); // Recarrega os dados
-                      } else {
-                        alert('Erro ao cancelar agendamento.');
-                      }
-                    }
-                  }}
-                  className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700 transition duration-300"
-                >
-                  Cancelar
-                </button>
-              </div>
-            </div>
+  return (
+    <div className="space-y-6">
+      <h2 className="text-3xl font-bold">Agendamentos</h2>
+
+      <div className="bg-gray-800 rounded-lg p-6">
+        <div className="flex justify-start items-center mb-6 gap-2 border-b border-gray-700 pb-4">
+          <h3 className="text-lg font-semibold mr-4">Filtrar por status:</h3>
+          {(['Todos', 'Pendente', 'Confirmado'] as const).map(f => (
+            <button 
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                filter === f 
+                  ? 'bg-red-600 text-white' 
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              {f}
+            </button>
           ))}
         </div>
-      ) : (
-        <p className="text-gray-400 text-center py-8">Nenhum agendamento encontrado.</p>
-      )}
+
+        {filteredAppointments.length > 0 ? (
+          <div className="space-y-4">
+            {filteredAppointments.map(appointment => (
+              <div key={appointment.id} className="bg-gray-700 p-6 rounded-lg shadow-lg flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                
+                {/* Detalhes do Agendamento */}
+                <div className="flex-grow space-y-4 w-full">
+                  <div className="flex items-center gap-4">
+                    <div className="flex-shrink-0 w-12 h-12 bg-gray-600 rounded-full flex items-center justify-center">
+                      <UserIcon className="h-6 w-6 text-gray-400" />
+                    </div>
+                    <div>
+                      <p className="text-xl font-bold text-white">{appointment.clientName}</p>
+                      <a href={`https://wa.me/${appointment.clientWhatsapp}`} target="_blank" rel="noopener noreferrer" className="flex items-center text-sm text-green-400 hover:text-green-300 transition-colors">
+                        <WhatsAppIcon className="h-4 w-4 mr-1" />
+                        {appointment.clientWhatsapp}
+                      </a>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-4 pt-4 border-t border-gray-600">
+                    <div className="flex items-start gap-3">
+                      <ScissorsIcon className="h-5 w-5 text-gray-400 mt-1" />
+                      <div>
+                        <p className="text-xs text-gray-400">Serviço</p>
+                        <p className="font-semibold text-white">{appointment.service?.name || 'N/A'}</p>
+                        <p className="text-sm text-gray-300">R$ {appointment.service?.price?.toFixed(2) || '0.00'}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <CalendarIcon className="h-5 w-5 text-gray-400 mt-1" />
+                      <div>
+                        <p className="text-xs text-gray-400">Data & Hora</p>
+                        <p className="font-semibold text-white">{new Date(appointment.date).toLocaleDateString('pt-BR', {timeZone: 'UTC'})} às {appointment.time}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <CreditCardIcon className="h-5 w-5 text-gray-400 mt-1" />
+                      <div>
+                        <p className="text-xs text-gray-400">Pagamento</p>
+                        <p className="font-semibold text-white">{appointment.paymentMethod}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Status e Ações */}
+                <div className="flex-shrink-0 flex flex-col items-center md:items-end justify-between self-stretch gap-4 w-full md:w-auto md:min-w-[120px] pt-4 md:pt-0 border-t md:border-t-0 md:border-l border-gray-600 md:pl-6">
+                  <span className={`px-3 py-1 rounded-full text-sm font-bold ${
+                    appointment.status === 'Confirmado' ? 'bg-green-200 text-green-800' : 'bg-yellow-200 text-yellow-800'
+                  }`}>
+                    {appointment.status}
+                  </span>
+                  
+                  <div className="flex flex-row md:flex-col gap-2 mt-auto w-full">
+                    {appointment.status === 'Pendente' && (
+                      <button
+                        onClick={async () => {
+                          const success = await FirestoreService.updateAppointmentStatus(barberId, appointment.id, 'Confirmado');
+                          if (success) {
+                            alert('Agendamento confirmado com sucesso!');
+                            onDataUpdate();
+                          } else {
+                            alert('Erro ao confirmar agendamento.');
+                          }
+                        }}
+                        className="w-full bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-green-700 transition-colors"
+                      >
+                        Confirmar
+                      </button>
+                    )}
+                    <button
+                      onClick={async () => {
+                        if (confirm(`Tem certeza que deseja cancelar o agendamento de ${appointment.clientName}?`)) {
+                          const success = await FirestoreService.cancelAppointment(barberId, appointment.id);
+                          if (success) {
+                            alert('Agendamento cancelado e horário restaurado.');
+                            onDataUpdate();
+                          } else {
+                            alert('Erro ao cancelar agendamento.');
+                          }
+                        }
+                      }}
+                      className="w-full bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-gray-400 text-center py-8">Nenhum agendamento encontrado para o filtro "{filter}".</p>
+        )}
+      </div>
     </div>
-  </div>
-);
+  );
+};
+
 
 // COMPONENTE PRINCIPAL
 const App: React.FC = () => {
@@ -1702,5 +1745,3 @@ const App: React.FC = () => {
 };
 
 export default App;
-
-
