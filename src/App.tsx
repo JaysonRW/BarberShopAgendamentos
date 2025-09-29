@@ -1,7 +1,8 @@
 
 
 
-import React, { useState, useCallback, useMemo, ChangeEvent, useEffect } from 'react';
+
+import React, { useState, useCallback, useMemo, ChangeEvent, useEffect, useRef } from 'react';
 import type { Promotion, GalleryImage, Service, Appointment, LoyaltyClient } from './types';
 import { FirestoreService, BarberData } from './firestoreService.ts';
 import { auth } from './firebaseConfig';
@@ -339,6 +340,8 @@ const MapPinIcon = ({className = "h-5 w-5"}) => <Icon className={className} path
 const ChevronLeftIcon = ({ className = "h-6 w-6" }) => <Icon className={className} path="M15 19l-7-7 7-7" />;
 const ChevronRightIcon = ({ className = "h-6 w-6" }) => <Icon className={className} path="M5 19l7-7-7-7" />;
 const StarIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />;
+const UploadIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M4 12a1 1 0 011 1v3a1 1 0 001 1h8a1 1 0 001-1v-3a1 1 0 112 0v3a3 3 0 01-3 3H6a3 3 0 01-3-3v-3a1 1 0 011-1zm5-10a1 1 0 011 1v7.586l2.293-2.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L9 10.586V3a1 1 0 011-1z" />;
+
 
 // Ícones específicos
 const WhatsAppIcon = ({className = "h-5 w-5 mr-2"}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 20 20" fill="currentColor"><path d="M10.3 2.2C5.7 2.2 2 5.9 2 10.5c0 1.6.4 3.1 1.3 4.4L2 20l5.2-1.3c1.3.8 2.8 1.2 4.4 1.2 4.6 0 8.3-3.7 8.3-8.3S14.9 2.2 10.3 2.2zM10.3 18.1c-1.4 0-2.8-.4-4-1.2l-.3-.2-3 .8.8-2.9-.2-.3c-.8-1.2-1.3-2.7-1.3-4.2 0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5-2.9 6.5-6.5 6.5zm3.2-4.9c-.2-.1-1.1-.5-1.3-.6-.2-.1-.3-.1-.5.1s-.5.6-.6.7c-.1.1-.2.2-.4.1-.2 0-.8-.3-1.5-.9s-1.1-1.3-1.2-1.5c-.1-.2 0-.3.1-.4l.3-.3c.1-.1.1-.2.2-.3.1-.1 0-.3-.1-.4-.1-.1-.5-1.1-.6-1.5-.2-.4-.3-.3-.5-.3h-.4c-.2 0-.4.1-.6.3s-.7.7-.7 1.6.7 1.9 1.4 2.6c1.1 1.1 2.1 1.7 3.3 1.7.2 0 .4 0 .6-.1.6-.2 1.1-.7 1.2-1.3.1-.6.1-1.1 0-1.2-.1-.1-.3-.2-.5-.3z" /></svg>;
@@ -358,7 +361,7 @@ const LinkIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="
 
 // Loading Spinner
 const LoadingSpinner = ({ message = 'Carregando...' }: { message?: string }) => (
-  <div className="flex h-screen items-center justify-center bg-gray-900">
+  <div className="fixed inset-0 bg-gray-900 bg-opacity-80 flex items-center justify-center z-50">
     <div className="flex flex-col items-center">
       <div className="h-16 w-16 animate-spin rounded-full border-4 border-dashed border-red-600"></div>
       <p className="text-white mt-4">{message}</p>
@@ -1024,95 +1027,98 @@ const AdminPanel: React.FC<{
   const [activeTab, setActiveTab] = useState<'profile' | 'dashboard' | 'services' | 'promotions' | 'gallery' | 'appointments' | 'loyalty'>('profile');
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<any>({});
+  
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+
 
   const handleEdit = (section: string, data: any) => {
     setEditData({ ...data });
+    setUploadFile(null);
     setIsEditing(true);
   };
 
   const handleSave = async () => {
+    setIsUploading(true);
     try {
-      console.log('💾 Salvando dados:', editData);
-      
-      // Determinar qual seção está sendo editada
-      if (activeTab === 'profile') {
-        const success = await FirestoreService.updateBarberProfile(barberData.id, editData);
-        if (success) {
-          alert('✅ Perfil atualizado com sucesso!');
+      let finalEditData = { ...editData };
+
+      // Etapa de Upload de Imagem
+      if (uploadFile) {
+        const folder = activeTab === 'profile' ? 'logos' : 'gallery';
+        const newUrl = await FirestoreService.uploadImage(barberData.id, uploadFile, folder);
+
+        if (newUrl) {
+          if (activeTab === 'profile') finalEditData.logoUrl = newUrl;
+          if (activeTab === 'gallery') finalEditData.src = newUrl;
         } else {
-          alert('❌ Erro ao atualizar perfil');
-        }
-      } else if (activeTab === 'services') {
-        if (editData.id) {
-          // Atualizar serviço existente
-          const success = await FirestoreService.updateService(barberData.id, editData.id, editData);
-          if (success) {
-            alert('✅ Serviço atualizado com sucesso!');
-          } else {
-            alert('❌ Erro ao atualizar serviço');
-          }
-        } else {
-          // Adicionar novo serviço
-          const serviceId = await FirestoreService.addService(barberData.id, editData);
-          if (serviceId) {
-            alert('✅ Serviço adicionado com sucesso!');
-          } else {
-            alert('❌ Erro ao adicionar serviço');
-          }
-        }
-      } else if (activeTab === 'promotions') {
-        if (editData.id) {
-          // Atualizar promoção existente
-          const success = await FirestoreService.updatePromotion(barberData.id, editData.id, editData);
-          if (success) {
-            alert('✅ Promoção atualizada com sucesso!');
-          } else {
-            alert('❌ Erro ao atualizar promoção');
-          }
-        } else {
-          // Adicionar nova promoção
-          const promotionId = await FirestoreService.addPromotion(barberData.id, editData);
-          if (promotionId) {
-            alert('✅ Promoção adicionada com sucesso!');
-          } else {
-            alert('❌ Erro ao adicionar promoção');
-          }
-        }
-      } else if (activeTab === 'gallery') {
-        if (editData.id) {
-          // Atualizar imagem existente
-          const success = await FirestoreService.updateGalleryImage(barberData.id, editData.id, editData);
-          if (success) {
-            alert('✅ Imagem atualizada com sucesso!');
-          } else {
-            alert('❌ Erro ao atualizar imagem');
-          }
-        } else {
-          // Adicionar nova imagem
-          const imageId = await FirestoreService.addGalleryImage(barberData.id, editData);
-          if (imageId) {
-            alert('✅ Imagem adicionada com sucesso!');
-          } else {
-            alert('❌ Erro ao adicionar imagem');
-          }
+          throw new Error('Falha no upload da imagem.');
         }
       }
       
+      console.log('💾 Salvando dados:', finalEditData);
+      
+      // Etapa de Salvamento no Firestore
+      let success = false;
+      let message = '';
+      
+      switch (activeTab) {
+        case 'profile':
+          success = await FirestoreService.updateBarberProfile(barberData.id, finalEditData);
+          message = 'Perfil';
+          break;
+        case 'services':
+          if (finalEditData.id) {
+            success = await FirestoreService.updateService(barberData.id, finalEditData.id, finalEditData);
+          } else {
+            success = !!await FirestoreService.addService(barberData.id, finalEditData);
+          }
+          message = 'Serviço';
+          break;
+        case 'promotions':
+          if (finalEditData.id) {
+            success = await FirestoreService.updatePromotion(barberData.id, finalEditData.id, finalEditData);
+          } else {
+            success = !!await FirestoreService.addPromotion(barberData.id, finalEditData);
+          }
+          message = 'Promoção';
+          break;
+        case 'gallery':
+          if (finalEditData.id) {
+            success = await FirestoreService.updateGalleryImage(barberData.id, finalEditData.id, finalEditData);
+          } else {
+            success = !!await FirestoreService.addGalleryImage(barberData.id, finalEditData);
+          }
+          message = 'Imagem';
+          break;
+      }
+      
+      if (success) {
+        alert(`✅ ${message} salvo com sucesso!`);
+      } else {
+        throw new Error(`Erro ao salvar ${message}`);
+      }
+      
       setIsEditing(false);
-      onDataUpdate(); // Recarregar dados
+      onDataUpdate();
     } catch (error) {
       console.error('❌ Erro ao salvar:', error);
-      alert('❌ Erro ao salvar dados');
+      alert(error instanceof Error ? error.message : 'Ocorreu um erro ao salvar.');
+    } finally {
+      setIsUploading(false);
+      setUploadFile(null);
     }
   };
 
   const handleCancel = () => {
     setIsEditing(false);
     setEditData({});
+    setUploadFile(null);
   };
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
+      {isUploading && <LoadingSpinner message="Salvando dados..." />}
       {/* Header */}
       <header className="bg-gray-800 border-b border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -1176,6 +1182,9 @@ const AdminPanel: React.FC<{
                 onSave={handleSave}
                 onCancel={handleCancel}
                 onEditDataChange={setEditData}
+                uploadFile={uploadFile}
+                setUploadFile={setUploadFile}
+                isUploading={isUploading}
               />
             )}
             
@@ -1214,6 +1223,9 @@ const AdminPanel: React.FC<{
                 onSave={handleSave}
                 onCancel={handleCancel}
                 onEditDataChange={setEditData}
+                uploadFile={uploadFile}
+                setUploadFile={setUploadFile}
+                isUploading={isUploading}
               />
             )}
             
@@ -1301,8 +1313,23 @@ const ProfileTab: React.FC<{
   onSave: () => void;
   onCancel: () => void;
   onEditDataChange: (data: any) => void;
-}> = ({ barberData, onEdit, isEditing, editData, onSave, onCancel, onEditDataChange }) => {
+  uploadFile: File | null;
+  setUploadFile: (file: File | null) => void;
+  isUploading: boolean;
+}> = ({ barberData, onEdit, isEditing, editData, onSave, onCancel, onEditDataChange, uploadFile, setUploadFile, isUploading }) => {
   const [isCopied, setIsCopied] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (uploadFile) {
+      const url = URL.createObjectURL(uploadFile);
+      setPreviewUrl(url);
+      return () => URL.revokeObjectURL(url);
+    } else {
+      setPreviewUrl(null);
+    }
+  }, [uploadFile]);
 
   const portalUrl = `${window.location.origin}/${barberData.profile.slug}`;
 
@@ -1330,6 +1357,31 @@ const ProfileTab: React.FC<{
       <div className="bg-gray-800 rounded-lg p-8">
         {isEditing ? (
           <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Logo</label>
+              <div className="flex items-center gap-4">
+                <img 
+                  src={previewUrl || editData.logoUrl || 'https://via.placeholder.com/96x96.png?text=LOGO'}
+                  alt="Pré-visualização do Logo"
+                  className="w-24 h-24 rounded-lg object-cover bg-gray-700"
+                />
+                <input
+                  type="file"
+                  accept="image/*"
+                  ref={fileInputRef}
+                  onChange={(e) => setUploadFile(e.target.files ? e.target.files[0] : null)}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-500 transition duration-300 flex items-center"
+                >
+                  <UploadIcon className="mr-2" /> Carregar Imagem
+                </button>
+              </div>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">Nome da Barbearia</label>
               <input
@@ -1370,26 +1422,18 @@ const ProfileTab: React.FC<{
               />
               <p className="text-xs text-gray-400 mt-1">O final do link do seu portal. Use apenas letras, números e hifens.</p>
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">URL do Logo</label>
-              <input
-                type="text"
-                value={editData.logoUrl || ''}
-                onChange={(e) => onEditDataChange({...editData, logoUrl: e.target.value})}
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-              />
-            </div>
             
             <div className="flex space-x-4 pt-4">
               <button
                 onClick={onSave}
-                className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition duration-300"
+                disabled={isUploading}
+                className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition duration-300 disabled:bg-gray-500"
               >
-                Salvar
+                {isUploading ? 'Salvando...' : 'Salvar'}
               </button>
               <button
                 onClick={onCancel}
+                disabled={isUploading}
                 className="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-500 transition duration-300"
               >
                 Cancelar
@@ -1638,94 +1682,129 @@ const GalleryTab: React.FC<{
   onSave: () => void;
   onCancel: () => void;
   onEditDataChange: (data: any) => void;
-}> = ({ images, onEdit, isEditing, editData, onSave, onCancel, onEditDataChange }) => (
-  <div className="space-y-6">
-    <div className="flex justify-between items-center">
-      <h2 className="text-3xl font-bold">Galeria</h2>
-      <button
-        onClick={() => onEdit('gallery', { src: '', alt: '' })}
-        className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition duration-300"
-      >
-        Adicionar Imagem
-      </button>
-    </div>
+  uploadFile: File | null;
+  setUploadFile: (file: File | null) => void;
+  isUploading: boolean;
+}> = ({ images, onEdit, isEditing, editData, onSave, onCancel, onEditDataChange, uploadFile, setUploadFile, isUploading }) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  
+  useEffect(() => {
+    if (uploadFile) {
+      const url = URL.createObjectURL(uploadFile);
+      setPreviewUrl(url);
+      return () => URL.revokeObjectURL(url);
+    } else {
+      setPreviewUrl(null);
+    }
+  }, [uploadFile]);
 
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-      {images.map(image => (
-        <div key={image.id} className="bg-gray-800 rounded-lg overflow-hidden">
-          <img 
-            src={image.src} 
-            alt={image.alt}
-            className="w-full h-32 object-cover"
-            onError={(e) => {
-              const target = e.target as HTMLImageElement;
-              target.src = 'https://via.placeholder.com/300x200/6b7280/ffffff?text=Imagem';
-            }}
-          />
-          <div className="p-3">
-            <p className="text-sm text-gray-300">{image.alt}</p>
-            <div className="mt-2 flex space-x-2">
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-3xl font-bold">Galeria</h2>
+        <button
+          onClick={() => onEdit('gallery', { src: '', alt: '' })}
+          className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition duration-300"
+        >
+          Adicionar Imagem
+        </button>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        {images.map(image => (
+          <div key={image.id} className="bg-gray-800 rounded-lg overflow-hidden">
+            <img 
+              src={image.src} 
+              alt={image.alt}
+              className="w-full h-32 object-cover"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.src = 'https://via.placeholder.com/300x200/6b7280/ffffff?text=Imagem';
+              }}
+            />
+            <div className="p-3">
+              <p className="text-sm text-gray-300">{image.alt}</p>
+              <div className="mt-2 flex space-x-2">
+                <button
+                  onClick={() => onEdit('gallery', image)}
+                  className="bg-blue-600 text-white px-2 py-1 rounded text-xs hover:bg-blue-700 transition duration-300"
+                >
+                  Editar
+                </button>
+                <button
+                  onClick={() => console.log('Deletar imagem:', image.id)}
+                  className="bg-red-600 text-white px-2 py-1 rounded text-xs hover:bg-red-700 transition duration-300"
+                >
+                  Deletar
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {isEditing && (
+        <div className="bg-gray-800 rounded-lg p-6">
+          <h3 className="text-xl font-bold mb-4">{editData.id ? 'Editar Imagem' : 'Adicionar Imagem'}</h3>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Imagem</label>
+               <div className="flex flex-col items-start gap-4">
+                <img 
+                  src={previewUrl || editData.src || 'https://via.placeholder.com/300x200/6b7280/ffffff?text=Selecione'}
+                  alt="Pré-visualização"
+                  className="w-48 h-32 rounded-lg object-cover bg-gray-700"
+                />
+                <input
+                  type="file"
+                  accept="image/*"
+                  ref={fileInputRef}
+                  onChange={(e) => setUploadFile(e.target.files ? e.target.files[0] : null)}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-500 transition duration-300 flex items-center"
+                >
+                  <UploadIcon className="mr-2" /> Carregar Imagem
+                </button>
+              </div>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Descrição</label>
+              <input
+                type="text"
+                value={editData.alt || ''}
+                onChange={(e) => onEditDataChange({...editData, alt: e.target.value})}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+              />
+            </div>
+            
+            <div className="flex space-x-4">
               <button
-                onClick={() => onEdit('gallery', image)}
-                className="bg-blue-600 text-white px-2 py-1 rounded text-xs hover:bg-blue-700 transition duration-300"
+                onClick={onSave}
+                disabled={isUploading}
+                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition duration-300 disabled:bg-gray-500"
               >
-                Editar
+                {isUploading ? 'Salvando...' : 'Salvar'}
               </button>
               <button
-                onClick={() => console.log('Deletar imagem:', image.id)}
-                className="bg-red-600 text-white px-2 py-1 rounded text-xs hover:bg-red-700 transition duration-300"
+                onClick={onCancel}
+                disabled={isUploading}
+                className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition duration-300"
               >
-                Deletar
+                Cancelar
               </button>
             </div>
           </div>
         </div>
-      ))}
+      )}
     </div>
-
-    {isEditing && (
-      <div className="bg-gray-800 rounded-lg p-6">
-        <h3 className="text-xl font-bold mb-4">Editar Imagem</h3>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">URL da Imagem</label>
-            <input
-              type="text"
-              value={editData.src || ''}
-              onChange={(e) => onEditDataChange({...editData, src: e.target.value})}
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">Descrição</label>
-            <input
-              type="text"
-              value={editData.alt || ''}
-              onChange={(e) => onEditDataChange({...editData, alt: e.target.value})}
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-            />
-          </div>
-          
-          <div className="flex space-x-4">
-            <button
-              onClick={onSave}
-              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition duration-300"
-            >
-              Salvar
-            </button>
-            <button
-              onClick={onCancel}
-              className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition duration-300"
-            >
-              Cancelar
-            </button>
-          </div>
-        </div>
-      </div>
-    )}
-  </div>
-);
+  );
+};
 
 // Appointments Tab
 const AppointmentsTab: React.FC<{

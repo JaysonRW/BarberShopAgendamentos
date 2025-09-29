@@ -1,4 +1,4 @@
-import { db } from './firebaseConfig';
+import { db, storage } from './firebaseConfig';
 import type { Promotion, GalleryImage, Service, Appointment, LoyaltyClient } from './types';
 
 // Interface para dados completos do barbeiro
@@ -23,6 +23,25 @@ export interface BarberData {
 // Classe para gerenciar todas as operações do Firestore
 export class FirestoreService {
   
+  // UPLOAD DE IMAGEM
+  static async uploadImage(barberId: string, file: File, folder: 'logos' | 'gallery'): Promise<string | null> {
+    try {
+      const fileName = `${folder}/${Date.now()}_${file.name}`;
+      const storageRef = storage.ref();
+      const fileRef = storageRef.child(`barbers/${barberId}/${fileName}`);
+      
+      console.log(`🚀 Fazendo upload do arquivo: ${fileName}`);
+      const snapshot = await fileRef.put(file);
+      const downloadURL = await snapshot.ref.getDownloadURL();
+      console.log('✅ Arquivo enviado com sucesso! URL:', downloadURL);
+      
+      return downloadURL;
+    } catch (error) {
+      console.error('❌ Erro no upload da imagem:', error);
+      return null;
+    }
+  }
+
   // Carregar todos os dados de um barbeiro (multi-tenant)
   static async loadBarberData(barberId: string): Promise<BarberData | null> {
     try {

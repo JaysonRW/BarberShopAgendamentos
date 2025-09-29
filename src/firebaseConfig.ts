@@ -2,6 +2,7 @@
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/auth';
 import 'firebase/compat/firestore';
+import 'firebase/compat/storage';
 
 // OU - Versão Moderna (descomente para usar a nova sintaxe)
 // import { initializeApp } from 'firebase/app';
@@ -13,7 +14,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyAyU1nm3zsW4RVtnYiw_dZ4-RSrUUlRsRM",
   authDomain: "barbershop-agendamentos.firebaseapp.com",
   projectId: "barbershop-agendamentos",
-  storageBucket: "barbershop-agendamentos.firebasestorage.app",
+  storageBucket: "barbershop-agendamentos.appspot.com",
   messagingSenderId: "578529360983",
   appId: "1:578529360983:web:1bcc2ff38459b53e043712"
 };
@@ -30,6 +31,8 @@ if (!firebase.apps.length) {
 
 export const auth = firebase.auth();
 export const db = firebase.firestore();
+export const storage = firebase.storage();
+
 
 // Configurações adicionais para melhor performance
 db.settings({
@@ -40,4 +43,3 @@ db.settings({
 // const app = initializeApp(firebaseConfig);
 // export const auth = getAuth(app);
 // export const db = getFirestore(app);
-
