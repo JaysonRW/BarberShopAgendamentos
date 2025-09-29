@@ -57,6 +57,8 @@ const ClockIcon = ({className = "h-5 w-5"}) => <Icon className={className} path=
 const ScissorsIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M14.293 5.293a1 1 0 011.414 1.414l-10 10a1 1 0 01-1.414-1.414l10-10zM5.707 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 1.414L7.121 6.707a1 1 0 01-1.414 0zM9 12a1 1 0 10-2 0 1 1 0 002 0zm-1-5.414l-3-3a1 1 0 10-1.414 1.414L6.586 8H5a1 1 0 000 2h2.586l4 4H10a1 1 0 100 2h1a1 1 0 001-1v-1.586l-4-4V9a1 1 0 00-1-1z" />;
 const CreditCardIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V8a2 2 0 00-2-2h-5L9 4H4zm2 2h2v2H6V6zm4 0h2v2h-2V6zM6 9h2v2H6V9zm4 0h2v2h-2V9z" />;
 const MapPinIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M5.05 4.05a7 7 0 119.9 9.9L10 20l-4.95-5.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" />;
+const ChevronLeftIcon = ({ className = "h-6 w-6" }) => <Icon className={className} path="M15 19l-7-7 7-7" />;
+const ChevronRightIcon = ({ className = "h-6 w-6" }) => <Icon className={className} path="M5 19l7-7-7-7" />;
 
 // Ícones específicos
 const WhatsAppIcon = ({className = "h-5 w-5 mr-2"}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 20 20" fill="currentColor"><path d="M10.3 2.2C5.7 2.2 2 5.9 2 10.5c0 1.6.4 3.1 1.3 4.4L2 20l5.2-1.3c1.3.8 2.8 1.2 4.4 1.2 4.6 0 8.3-3.7 8.3-8.3S14.9 2.2 10.3 2.2zM10.3 18.1c-1.4 0-2.8-.4-4-1.2l-.3-.2-3 .8.8-2.9-.2-.3c-.8-1.2-1.3-2.7-1.3-4.2 0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5-2.9 6.5-6.5 6.5zm3.2-4.9c-.2-.1-1.1-.5-1.3-.6-.2-.1-.3-.1-.5.1s-.5.6-.6.7c-.1.1-.2.2-.4.1-.2 0-.8-.3-1.5-.9s-1.1-1.3-1.2-1.5c-.1-.2 0-.3.1-.4l.3-.3c.1-.1.1-.2.2-.3.1-.1 0-.3-.1-.4-.1-.1-.5-1.1-.6-1.5-.2-.4-.3-.3-.5-.3h-.4c-.2 0-.4.1-.6.3s-.7.7-.7 1.6.7 1.9 1.4 2.6c1.1 1.1 2.1 1.7 3.3 1.7.2 0 .4 0 .6-.1.6-.2 1.1-.7 1.2-1.3.1-.6.1-1.1 0-1.2-.1-.1-.3-.2-.5-.3z" /></svg>;
@@ -889,6 +891,7 @@ const AdminPanel: React.FC<{
                 appointments={barberData.appointments}
                 barberId={barberData.id}
                 onDataUpdate={onDataUpdate}
+                availability={barberData.availability}
               />
             )}
           </div>
@@ -1386,13 +1389,18 @@ const GalleryTab: React.FC<{
   </div>
 );
 
-// Appointments Tab (ATUALIZADO E REDESENHADO)
+// Appointments Tab
 const AppointmentsTab: React.FC<{
   appointments: Appointment[];
   barberId: string;
   onDataUpdate: () => void;
-}> = ({ appointments, barberId, onDataUpdate }) => {
+  availability: Record<string, string[]>;
+}> = ({ appointments, barberId, onDataUpdate, availability }) => {
+  const [view, setView] = useState<'list' | 'calendar'>('list');
   const [filter, setFilter] = useState<'Todos' | 'Pendente' | 'Confirmado'>('Todos');
+  
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   const filteredAppointments = useMemo(() => appointments
     .filter(app => filter === 'Todos' || app.status === filter)
@@ -1401,87 +1409,101 @@ const AppointmentsTab: React.FC<{
       const dateB = new Date(`${b.date}T${b.time}`);
       return dateB.getTime() - dateA.getTime();
   }), [appointments, filter]);
+  
+  const calendarData = useMemo(() => {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const firstDayOfMonth = new Date(year, month, 1).getDay();
+    return { year, month, daysInMonth, firstDayOfMonth };
+  }, [currentDate]);
+
+  const changeMonth = (delta: number) => {
+    setCurrentDate(prev => {
+      const newDate = new Date(prev);
+      newDate.setMonth(prev.getMonth() + delta);
+      return newDate;
+    });
+    setSelectedDate(null);
+  };
+  
+  const handleDateClick = (day: number) => {
+    const date = new Date(calendarData.year, calendarData.month, day);
+    const dateString = date.toISOString().split('T')[0];
+    setSelectedDate(dateString);
+  };
+  
+  const selectedDateAvailability = useMemo(() => selectedDate ? (availability[selectedDate] || []).sort() : [], [selectedDate, availability]);
 
   return (
     <div className="space-y-6">
-      <h2 className="text-3xl font-bold">Agendamentos</h2>
-
-      <div className="bg-gray-800 rounded-lg p-6">
-        <div className="flex justify-start items-center mb-6 gap-2 border-b border-gray-700 pb-4">
-          <h3 className="text-lg font-semibold mr-4">Filtrar por status:</h3>
-          {(['Todos', 'Pendente', 'Confirmado'] as const).map(f => (
-            <button 
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                filter === f 
-                  ? 'bg-red-600 text-white' 
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-              }`}
-            >
-              {f}
-            </button>
-          ))}
+      <div className="flex justify-between items-center">
+        <h2 className="text-3xl font-bold">Agendamentos</h2>
+        <div className="flex bg-gray-700 p-1 rounded-lg">
+          <button onClick={() => setView('list')} className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${view === 'list' ? 'bg-red-600 text-white' : 'text-gray-300 hover:bg-gray-600'}`}>Lista</button>
+          <button onClick={() => setView('calendar')} className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${view === 'calendar' ? 'bg-red-600 text-white' : 'text-gray-300 hover:bg-gray-600'}`}>Calendário</button>
         </div>
-
-        {filteredAppointments.length > 0 ? (
-          <div className="space-y-4">
-            {filteredAppointments.map(appointment => (
-              <div key={appointment.id} className="bg-gray-700 p-6 rounded-lg shadow-lg flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                
-                {/* Detalhes do Agendamento */}
-                <div className="flex-grow space-y-4 w-full">
-                  <div className="flex items-center gap-4">
-                    <div className="flex-shrink-0 w-12 h-12 bg-gray-600 rounded-full flex items-center justify-center">
-                      <UserIcon className="h-6 w-6 text-gray-400" />
+      </div>
+      
+      {view === 'list' ? (
+        <div className="bg-gray-800 rounded-lg p-6">
+          <div className="flex justify-start items-center mb-6 gap-2 border-b border-gray-700 pb-4">
+            <h3 className="text-lg font-semibold mr-4">Filtrar por status:</h3>
+            {(['Todos', 'Pendente', 'Confirmado'] as const).map(f => (
+              <button key={f} onClick={() => setFilter(f)} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === f ? 'bg-red-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>
+                {f}
+              </button>
+            ))}
+          </div>
+          {filteredAppointments.length > 0 ? (
+            <div className="space-y-4">
+              {filteredAppointments.map(appointment => (
+                <div key={appointment.id} className="bg-gray-700 p-6 rounded-lg shadow-lg flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                  <div className="flex-grow space-y-4 w-full">
+                    <div className="flex items-center gap-4">
+                      <div className="flex-shrink-0 w-12 h-12 bg-gray-600 rounded-full flex items-center justify-center">
+                        <UserIcon className="h-6 w-6 text-gray-400" />
+                      </div>
+                      <div>
+                        <p className="text-xl font-bold text-white">{appointment.clientName}</p>
+                        <a href={`https://wa.me/${appointment.clientWhatsapp}`} target="_blank" rel="noopener noreferrer" className="flex items-center text-sm text-green-400 hover:text-green-300 transition-colors">
+                          <WhatsAppIcon className="h-4 w-4 mr-1" />
+                          {appointment.clientWhatsapp}
+                        </a>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-xl font-bold text-white">{appointment.clientName}</p>
-                      <a href={`https://wa.me/${appointment.clientWhatsapp}`} target="_blank" rel="noopener noreferrer" className="flex items-center text-sm text-green-400 hover:text-green-300 transition-colors">
-                        <WhatsAppIcon className="h-4 w-4 mr-1" />
-                        {appointment.clientWhatsapp}
-                      </a>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-4 pt-4 border-t border-gray-600">
+                      <div className="flex items-start gap-3">
+                        <ScissorsIcon className="h-5 w-5 text-gray-400 mt-1" />
+                        <div>
+                          <p className="text-xs text-gray-400">Serviço</p>
+                          <p className="font-semibold text-white">{appointment.service?.name || 'N/A'}</p>
+                          <p className="text-sm text-gray-300">R$ {appointment.service?.price?.toFixed(2) || '0.00'}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <CalendarIcon className="h-5 w-5 text-gray-400 mt-1" />
+                        <div>
+                          <p className="text-xs text-gray-400">Data & Hora</p>
+                          <p className="font-semibold text-white">{new Date(appointment.date).toLocaleDateString('pt-BR', {timeZone: 'UTC'})} às {appointment.time}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <CreditCardIcon className="h-5 w-5 text-gray-400 mt-1" />
+                        <div>
+                          <p className="text-xs text-gray-400">Pagamento</p>
+                          <p className="font-semibold text-white">{appointment.paymentMethod}</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-4 pt-4 border-t border-gray-600">
-                    <div className="flex items-start gap-3">
-                      <ScissorsIcon className="h-5 w-5 text-gray-400 mt-1" />
-                      <div>
-                        <p className="text-xs text-gray-400">Serviço</p>
-                        <p className="font-semibold text-white">{appointment.service?.name || 'N/A'}</p>
-                        <p className="text-sm text-gray-300">R$ {appointment.service?.price?.toFixed(2) || '0.00'}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <CalendarIcon className="h-5 w-5 text-gray-400 mt-1" />
-                      <div>
-                        <p className="text-xs text-gray-400">Data & Hora</p>
-                        <p className="font-semibold text-white">{new Date(appointment.date).toLocaleDateString('pt-BR', {timeZone: 'UTC'})} às {appointment.time}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <CreditCardIcon className="h-5 w-5 text-gray-400 mt-1" />
-                      <div>
-                        <p className="text-xs text-gray-400">Pagamento</p>
-                        <p className="font-semibold text-white">{appointment.paymentMethod}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Status e Ações */}
-                <div className="flex-shrink-0 flex flex-col items-center md:items-end justify-between self-stretch gap-4 w-full md:w-auto md:min-w-[120px] pt-4 md:pt-0 border-t md:border-t-0 md:border-l border-gray-600 md:pl-6">
-                  <span className={`px-3 py-1 rounded-full text-sm font-bold ${
-                    appointment.status === 'Confirmado' ? 'bg-green-200 text-green-800' : 'bg-yellow-200 text-yellow-800'
-                  }`}>
-                    {appointment.status}
-                  </span>
-                  
-                  <div className="flex flex-row md:flex-col gap-2 mt-auto w-full">
-                    {appointment.status === 'Pendente' && (
-                      <button
-                        onClick={async () => {
+                  <div className="flex-shrink-0 flex flex-col items-center md:items-end justify-between self-stretch gap-4 w-full md:w-auto md:min-w-[120px] pt-4 md:pt-0 border-t md:border-t-0 md:border-l border-gray-600 md:pl-6">
+                    <span className={`px-3 py-1 rounded-full text-sm font-bold ${appointment.status === 'Confirmado' ? 'bg-green-200 text-green-800' : 'bg-yellow-200 text-yellow-800'}`}>
+                      {appointment.status}
+                    </span>
+                    <div className="flex flex-row md:flex-col gap-2 mt-auto w-full">
+                      {appointment.status === 'Pendente' && (
+                        <button onClick={async () => {
                           const success = await FirestoreService.updateAppointmentStatus(barberId, appointment.id, 'Confirmado');
                           if (success) {
                             alert('Agendamento confirmado com sucesso!');
@@ -1489,14 +1511,9 @@ const AppointmentsTab: React.FC<{
                           } else {
                             alert('Erro ao confirmar agendamento.');
                           }
-                        }}
-                        className="w-full bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-green-700 transition-colors"
-                      >
-                        Confirmar
-                      </button>
-                    )}
-                    <button
-                      onClick={async () => {
+                        }} className="w-full bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-green-700 transition-colors">Confirmar</button>
+                      )}
+                      <button onClick={async () => {
                         if (confirm(`Tem certeza que deseja cancelar o agendamento de ${appointment.clientName}?`)) {
                           const success = await FirestoreService.cancelAppointment(barberId, appointment.id);
                           if (success) {
@@ -1506,21 +1523,62 @@ const AppointmentsTab: React.FC<{
                             alert('Erro ao cancelar agendamento.');
                           }
                         }
-                      }}
-                      className="w-full bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition-colors"
-                    >
-                      Cancelar
-                    </button>
+                      }} className="w-full bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition-colors">Cancelar</button>
+                    </div>
                   </div>
                 </div>
-
-              </div>
-            ))}
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-400 text-center py-8">Nenhum agendamento encontrado para o filtro "{filter}".</p>
+          )}
+        </div>
+      ) : (
+        <div className="bg-gray-800 rounded-lg p-6">
+          <div className="flex justify-between items-center mb-6">
+            <button onClick={() => changeMonth(-1)} className="p-2 rounded-full hover:bg-gray-700 transition-colors"><ChevronLeftIcon /></button>
+            <h3 className="text-xl font-bold capitalize">{currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}</h3>
+            <button onClick={() => changeMonth(1)} className="p-2 rounded-full hover:bg-gray-700 transition-colors"><ChevronRightIcon /></button>
           </div>
-        ) : (
-          <p className="text-gray-400 text-center py-8">Nenhum agendamento encontrado para o filtro "{filter}".</p>
-        )}
-      </div>
+          
+          <div className="grid grid-cols-7 gap-2 text-center">
+            {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => <div key={day} className="font-semibold text-sm text-gray-400 py-2">{day}</div>)}
+            {Array.from({ length: calendarData.firstDayOfMonth }).map((_, i) => <div key={`empty-${i}`}></div>)}
+            {Array.from({ length: calendarData.daysInMonth }).map((_, day) => {
+              const dayNumber = day + 1;
+              const date = new Date(calendarData.year, calendarData.month, dayNumber);
+              const dateString = date.toISOString().split('T')[0];
+              const availableSlotsCount = availability[dateString]?.length || 0;
+              const isToday = new Date().toISOString().split('T')[0] === dateString;
+
+              return (
+                <button key={dayNumber} onClick={() => handleDateClick(dayNumber)}
+                  className={`flex flex-col items-center justify-center h-20 p-2 rounded-lg transition-colors text-white text-lg ${
+                    selectedDate === dateString ? 'bg-red-600' : isToday ? 'bg-gray-600' : 'bg-gray-700 hover:bg-gray-600'
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  disabled={availableSlotsCount === 0}
+                >
+                  {dayNumber}
+                  {availableSlotsCount > 0 && <span className="block text-xs font-semibold text-green-300 mt-1">{availableSlotsCount} {availableSlotsCount === 1 ? 'horário' : 'horários'}</span>}
+                </button>
+              );
+            })}
+          </div>
+          
+          {selectedDate && (
+            <div className="mt-6 pt-6 border-t border-gray-700">
+              <h4 className="text-lg font-bold mb-4">Horários disponíveis para {new Date(selectedDate).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}:</h4>
+              {selectedDateAvailability.length > 0 ? (
+                <div className="flex flex-wrap gap-3">
+                  {selectedDateAvailability.map(time => <span key={time} className="bg-gray-700 px-4 py-2 rounded-lg font-mono text-sm">{time}</span>)}
+                </div>
+              ) : (
+                <p className="text-gray-400">Nenhum horário disponível para esta data.</p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
