@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo, ChangeEvent, useEffect, useRef } from 'react';
 import type { Promotion, GalleryImage, Service, Appointment, LoyaltyClient } from './types';
-import { FirestoreService, BarberData } from './firestoreService.ts';
+import { FirestoreService, BarberData } from './firestoreService';
 import { auth } from './firebaseConfig';
 import { testFirebaseConnection, testFirestoreWrite, testFirestoreRead } from './firebaseTest';
 import { APP_CONFIG, getBarberSlugFromUrl, debugLog } from './config';
@@ -1106,9 +1106,13 @@ const AdminPanel: React.FC<{
       
       setIsEditing(false);
       onDataUpdate();
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Erro ao salvar:', error);
-      alert( 'Ocorreu um erro ao salvar. Verifique o console para mais detalhes.');
+      let userMessage = 'Ocorreu um erro ao salvar. Verifique o console para mais detalhes.';
+      if (error && error.code === 'storage/unauthorized') {
+        userMessage = 'Erro de permissão ao salvar a imagem. Isso geralmente é causado por uma configuração incorreta de CORS no Firebase Storage. Por favor, verifique as regras e a configuração de CORS do seu bucket.';
+      }
+      alert(userMessage);
     } finally {
       setIsUploading(false);
       setUploadFile(null);

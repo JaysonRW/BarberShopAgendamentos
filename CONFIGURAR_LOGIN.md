@@ -45,4 +45,4 @@ No painel administrativo você deve ver:
 - ✅ Opção de logout
 - ✅ Dados reais do Firebase (não mock)
 
-gsutil cors set cors.json gs://barbershop-agendamentos.firebasestorage.app
+gsutil cors set cors.json gs://barbershop-agendamentos.appspot.com
