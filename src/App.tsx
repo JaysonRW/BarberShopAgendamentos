@@ -14,18 +14,18 @@ import { populateTestData, createTestBarber } from './populateTestData';
 // === SISTEMA DE ROTEAMENTO MELHORADO ===
 const useRouting = () => {
   const [currentRoute, setCurrentRoute] = useState<{
-    type: 'home' | 'barber' | 'admin' | 'notfound';
+    type: 'barber' | 'admin' | 'notfound';
     slug?: string;
-  }>({ type: 'home' });
+  }>({ type: 'barber', slug: 'nobresdobairro' });
 
   useEffect(() => {
     const determineRoute = () => {
       const path = window.location.pathname;
       const slug = getBarberSlugFromUrl();
       
-      // Página inicial (sem slug)
+      // Página inicial (sem slug) - carrega um barbeiro padrão
       if (path === '/' || path === '') {
-        setCurrentRoute({ type: 'home' });
+        setCurrentRoute({ type: 'barber', slug: 'nobresdobairro' });
         return;
       }
       
@@ -58,43 +58,7 @@ const useRouting = () => {
   return currentRoute;
 };
 
-// === COMPONENTE DE PÁGINA INICIAL ===
-const HomePage: React.FC = () => (
-  <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
-    <div className="text-center max-w-2xl px-6">
-      <h1 className="text-6xl font-bold mb-6">Barber Shop</h1>
-      <p className="text-xl text-gray-300 mb-8">
-        Plataforma completa para agendamento de serviços em barbearias
-      </p>
-      
-      <div className="bg-gray-800 rounded-lg p-8 mt-8">
-        <h2 className="text-2xl font-bold mb-4">Como acessar sua barbearia?</h2>
-        <p className="text-gray-300 mb-6">
-          Se você já tem um portal cadastrado, acesse através do seu link personalizado:
-        </p>
-        <p className="text-cyan-400 text-lg font-mono">
-          {window.location.origin}/seu-slug-aqui
-        </p>
-        
-        <div className="mt-8 pt-8 border-t border-gray-700">
-          <h3 className="text-xl font-bold mb-4">Não tem um portal ainda?</h3>
-          <p className="text-gray-300 mb-4">
-            Entre em contato conosco para criar seu portal personalizado
-          </p>
-          <a 
-            href="https://wa.me/5541995343245" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="inline-flex items-center bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition duration-300"
-          >
-            <WhatsAppIcon className="mr-2" />
-            Falar no WhatsApp
-          </a>
-        </div>
-      </div>
-    </div>
-  </div>
-);
+// O componente HomePage foi removido pois a rota principal agora carrega um portal de cliente.
 
 // === NO SEU COMPONENTE APP PRINCIPAL ===
 // Substitua a lógica de inicialização existente por esta versão melhorada:
@@ -148,12 +112,6 @@ const App: React.FC = () => {
       console.log('🚀 Inicializando aplicação...');
       setLoading(true);
       setErrorMessage(null);
-
-      // Se estamos na página inicial, não precisamos carregar dados de barbeiro
-      if (currentRoute.type === 'home') {
-        setLoading(false);
-        return;
-      }
 
       // Se não há slug para rotas que precisam dele, mostrar erro
       if ((currentRoute.type === 'barber' || currentRoute.type === 'admin') && !currentRoute.slug) {
@@ -210,6 +168,9 @@ const App: React.FC = () => {
                 const barberId = await FirestoreService.findBarberBySlug(currentRoute.slug);
                 if (barberId) {
                     await loadBarberData(barberId);
+                } else {
+                  // Se o slug do admin for inválido, cai no erro.
+                  setErrorMessage(APP_CONFIG.ERROR_MESSAGES.BARBER_NOT_FOUND);
                 }
             }
             setLoading(false);
@@ -304,11 +265,6 @@ const App: React.FC = () => {
   // Renderização baseada na rota atual
   if (loading) {
     return <LoadingSpinner message="Carregando..." />;
-  }
-
-  // Página inicial
-  if (currentRoute.type === 'home') {
-    return <HomePage />;
   }
 
   // Erro de conexão ou dados não encontrados
