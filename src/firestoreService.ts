@@ -24,22 +24,33 @@ export interface BarberData {
 export class FirestoreService {
   
   // UPLOAD DE IMAGEM
-  static async uploadImage(barberId: string, file: File, folder: 'logos' | 'gallery'): Promise<string | null> {
-    try {
+  static uploadImage(barberId: string, file: File, folder: 'logos' | 'gallery', onProgress: (progress: number) => void): Promise<string> {
+    return new Promise((resolve, reject) => {
       const fileName = `${folder}/${Date.now()}_${file.name}`;
       const storageRef = storage.ref();
       const fileRef = storageRef.child(`barbers/${barberId}/${fileName}`);
       
       console.log(`🚀 Fazendo upload do arquivo: ${fileName}`);
-      const snapshot = await fileRef.put(file);
-      const downloadURL = await snapshot.ref.getDownloadURL();
-      console.log('✅ Arquivo enviado com sucesso! URL:', downloadURL);
-      
-      return downloadURL;
-    } catch (error) {
-      console.error('❌ Erro no upload da imagem:', error);
-      return null;
-    }
+      const uploadTask = fileRef.put(file);
+
+      uploadTask.on('state_changed', 
+        (snapshot) => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          console.log('Upload is ' + progress + '% done');
+          onProgress(progress);
+        }, 
+        (error) => {
+          console.error('❌ Erro no upload da imagem:', error);
+          reject(error);
+        }, 
+        () => {
+          uploadTask.snapshot.ref.getDownloadURL().then((downloadURL) => {
+            console.log('✅ Arquivo enviado com sucesso! URL:', downloadURL);
+            resolve(downloadURL);
+          }).catch(reject);
+        }
+      );
+    });
   }
 
   // Carregar todos os dados de um barbeiro (multi-tenant)

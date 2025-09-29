@@ -1,7 +1,3 @@
-
-
-
-
 import React, { useState, useCallback, useMemo, ChangeEvent, useEffect, useRef } from 'react';
 import type { Promotion, GalleryImage, Service, Appointment, LoyaltyClient } from './types';
 import { FirestoreService, BarberData } from './firestoreService.ts';
@@ -360,14 +356,20 @@ const LinkIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="
 // === COMPONENTES ===
 
 // Loading Spinner
-const LoadingSpinner = ({ message = 'Carregando...' }: { message?: string }) => (
+const LoadingSpinner = ({ message = 'Carregando...', progress }: { message?: string, progress?: number }) => (
   <div className="fixed inset-0 bg-gray-900 bg-opacity-80 flex items-center justify-center z-50">
     <div className="flex flex-col items-center">
       <div className="h-16 w-16 animate-spin rounded-full border-4 border-dashed border-red-600"></div>
       <p className="text-white mt-4">{message}</p>
+      {progress !== undefined && (
+        <div className="w-48 bg-gray-600 rounded-full h-2.5 mt-4">
+          <div className="bg-red-600 h-2.5 rounded-full transition-all duration-300" style={{ width: `${progress}%` }}></div>
+        </div>
+      )}
     </div>
   </div>
 );
+
 
 // Página não encontrada
 const NotFound = () => (
@@ -1030,6 +1032,7 @@ const AdminPanel: React.FC<{
   
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | undefined>(undefined);
 
 
   const handleEdit = (section: string, data: any) => {
@@ -1040,20 +1043,22 @@ const AdminPanel: React.FC<{
 
   const handleSave = async () => {
     setIsUploading(true);
+    setUploadProgress(uploadFile ? 0 : undefined);
     try {
       let finalEditData = { ...editData };
 
       // Etapa de Upload de Imagem
       if (uploadFile) {
         const folder = activeTab === 'profile' ? 'logos' : 'gallery';
-        const newUrl = await FirestoreService.uploadImage(barberData.id, uploadFile, folder);
+        const newUrl = await FirestoreService.uploadImage(
+          barberData.id, 
+          uploadFile, 
+          folder,
+          (progress) => setUploadProgress(progress)
+        );
 
-        if (newUrl) {
-          if (activeTab === 'profile') finalEditData.logoUrl = newUrl;
-          if (activeTab === 'gallery') finalEditData.src = newUrl;
-        } else {
-          throw new Error('Falha no upload da imagem.');
-        }
+        if (activeTab === 'profile') finalEditData.logoUrl = newUrl;
+        if (activeTab === 'gallery') finalEditData.src = newUrl;
       }
       
       console.log('💾 Salvando dados:', finalEditData);
@@ -1103,10 +1108,11 @@ const AdminPanel: React.FC<{
       onDataUpdate();
     } catch (error) {
       console.error('❌ Erro ao salvar:', error);
-      alert(error instanceof Error ? error.message : 'Ocorreu um erro ao salvar.');
+      alert( 'Ocorreu um erro ao salvar. Verifique o console para mais detalhes.');
     } finally {
       setIsUploading(false);
       setUploadFile(null);
+      setUploadProgress(undefined);
     }
   };
 
@@ -1118,7 +1124,7 @@ const AdminPanel: React.FC<{
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
-      {isUploading && <LoadingSpinner message="Salvando dados..." />}
+      {isUploading && <LoadingSpinner message="Salvando dados..." progress={uploadProgress} />}
       {/* Header */}
       <header className="bg-gray-800 border-b border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
