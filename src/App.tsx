@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useCallback, useMemo, ChangeEvent, useEffect } from 'react';
 import type { Promotion, GalleryImage, Service, Appointment, LoyaltyClient } from './types';
 import { FirestoreService, BarberData } from './firestoreService.ts';
@@ -16,37 +17,31 @@ const useRouting = () => {
   const [currentRoute, setCurrentRoute] = useState<{
     type: 'barber' | 'admin' | 'notfound';
     slug?: string;
-  }>({ type: 'barber', slug: 'nobresdobairro' });
+  } | null>(null);
 
   useEffect(() => {
     const determineRoute = () => {
       const path = window.location.pathname;
       const slug = getBarberSlugFromUrl();
       
-      // Página inicial (sem slug) - carrega um barbeiro padrão
       if (path === '/' || path === '') {
         setCurrentRoute({ type: 'barber', slug: 'nobresdobairro' });
         return;
       }
       
-      // Se tem slug válido
       if (slug) {
-        // Se é uma rota de admin do barbeiro
         if (path.includes('/admin')) {
           setCurrentRoute({ type: 'admin', slug });
         } else {
-          // Rota do portal do barbeiro
           setCurrentRoute({ type: 'barber', slug });
         }
       } else {
-        // Rota não reconhecida
         setCurrentRoute({ type: 'notfound' });
       }
     };
 
     determineRoute();
     
-    // Escutar mudanças na URL (para navegação programática)
     const handlePopState = () => {
       determineRoute();
     };
@@ -58,25 +53,20 @@ const useRouting = () => {
   return currentRoute;
 };
 
-// O componente HomePage foi removido pois a rota principal agora carrega um portal de cliente.
 
-// === NO SEU COMPONENTE APP PRINCIPAL ===
-// Substitua a lógica de inicialização existente por esta versão melhorada:
-// FIX: Merged two 'App' components into one and defined 'handleFirestoreError' to fix scope issues.
+// === COMPONENTE APP PRINCIPAL REATORADO ===
 const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [barberData, setBarberData] = useState<BarberData | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [user, setUser] = useState<any | null>(null);
+  const [user, setUser] = useState<any | null>(() => auth.currentUser);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [view, setView] = useState<'client' | 'admin'>('client');
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [loginError, setLoginError] = useState('');
-  const [useMockData, setUseMockData] = useState(false);
 
-  // Usar o hook de roteamento
   const currentRoute = useRouting();
 
-  // Helper para lidar com erros do Firestore de forma centralizada
   const handleFirestoreError = useCallback((error: any) => {
     console.error('Firestore Error:', error);
     if (error.code === 'unavailable') {
@@ -87,112 +77,103 @@ const App: React.FC = () => {
     setBarberData(null);
   }, []);
 
-  // Carregar dados do barbeiro (função existente mantida igual)
   const loadBarberData = useCallback(async (barberId: string | null) => {
     if (!barberId) {
       setBarberData(null);
+      setErrorMessage(APP_CONFIG.ERROR_MESSAGES.BARBER_NOT_FOUND);
       return;
     }
     
     try {
       const data = await FirestoreService.loadBarberData(barberId);
-      setBarberData(data);
       if (data) {
-        setUseMockData(false);
+        setBarberData(data);
         setErrorMessage(null);
+      } else {
+        setErrorMessage(APP_CONFIG.ERROR_MESSAGES.BARBER_NOT_FOUND);
       }
     } catch (error) {
       handleFirestoreError(error);
     }
   }, [handleFirestoreError]);
 
-  // Inicialização melhorada
+  // Efeito para gerenciar o estado de autenticação
+  useEffect(() => {
+    console.log('🔒 Auth effect setup');
+    const unsubscribe = auth.onAuthStateChanged(currentUser => {
+      setUser(currentUser);
+      setIsAuthLoading(false);
+      console.log('🔑 Auth state changed:', currentUser ? currentUser.uid : 'logged out');
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Efeito para carregar os dados com base na rota e no usuário
   useEffect(() => {
     const initializeApp = async () => {
-      console.log('🚀 Inicializando aplicação...');
+      if (!currentRoute || isAuthLoading) {
+        console.log('⏳ Aguardando rota ou autenticação...');
+        return;
+      }
+      
+      console.log('🚀 Inicializando aplicação com rota:', currentRoute, 'e usuário:', user?.uid);
       setLoading(true);
       setErrorMessage(null);
+      
+      try {
+        const isConnected = await testFirebaseConnection();
+        if (!isConnected) {
+          console.error('❌ Falha na conexão com Firebase');
+          setErrorMessage(APP_CONFIG.ERROR_MESSAGES.CONNECTION_ERROR);
+          setLoading(false);
+          return;
+        }
 
-      // Se não há slug para rotas que precisam dele, mostrar erro
-      if ((currentRoute.type === 'barber' || currentRoute.type === 'admin') && !currentRoute.slug) {
-        setErrorMessage(APP_CONFIG.ERROR_MESSAGES.BARBER_NOT_FOUND);
-        setLoading(false);
-        return;
-      }
-
-      // Teste de conectividade com Firebase
-      const isConnected = await testFirebaseConnection();
-      if (!isConnected) {
-        console.error('❌ Falha na conexão com Firebase');
-        setErrorMessage(APP_CONFIG.ERROR_MESSAGES.CONNECTION_ERROR);
-        setLoading(false);
-        return;
-      }
-
-      const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
-        try {
-          setUser(currentUser);
-          
-          if (currentUser && currentRoute.type === 'admin') {
-            // Usuário logado tentando acessar admin
-            const barberId = await FirestoreService.findBarberByUserId(currentUser.uid);
+        if (currentRoute.type === 'admin') {
+          if (user) {
+            const barberId = await FirestoreService.findBarberByUserId(user.uid);
             if (barberId) {
               await loadBarberData(barberId);
               setView('admin');
             } else {
-              // Usuário não tem barbeiro associado
               setErrorMessage('Você não tem permissão para acessar esta área.');
-              setLoading(false);
-              return;
             }
-          } else if (currentRoute.type === 'barber' && currentRoute.slug) {
-            // Carregando portal público do barbeiro
-            setView('client');
-            const barberId = await FirestoreService.findBarberBySlug(currentRoute.slug);
-            
-            if (barberId) {
-              await loadBarberData(barberId);
-            } else {
-              setErrorMessage(APP_CONFIG.ERROR_MESSAGES.BARBER_NOT_FOUND);
-              setLoading(false);
-              return;
-            }
-          } else if (currentRoute.type === 'admin' && !currentUser) {
-            // Tentativa de acessar admin sem estar logado.
-            // O modal de login será aberto apenas pelo clique no botão,
-            // enquanto isso, a visão do cliente é carregada.
-            // setShowLoginModal(true); // Removido para atender ao novo fluxo
-
-             // Load client data for background view
+          } else {
+            // Não logado tentando acessar admin, carrega a visão do cliente por trás
             if (currentRoute.slug) {
-                const barberId = await FirestoreService.findBarberBySlug(currentRoute.slug);
-                if (barberId) {
-                    await loadBarberData(barberId);
-                } else {
-                  // Se o slug do admin for inválido, cai no erro.
-                  setErrorMessage(APP_CONFIG.ERROR_MESSAGES.BARBER_NOT_FOUND);
-                }
+              const barberId = await FirestoreService.findBarberBySlug(currentRoute.slug);
+              await loadBarberData(barberId);
             }
-            setLoading(false);
-            return;
+            setView('client');
           }
-          
-        } catch (error) {
-          console.error('❌ Erro na inicialização:', error);
-          handleFirestoreError(error);
-        } finally {
-          setLoading(false);
+        } else if (currentRoute.type === 'barber') {
+          setView('client');
+          if (currentRoute.slug) {
+            const barberId = await FirestoreService.findBarberBySlug(currentRoute.slug);
+            await loadBarberData(barberId);
+          } else {
+             setErrorMessage(APP_CONFIG.ERROR_MESSAGES.BARBER_NOT_FOUND);
+          }
+        } else if (currentRoute.type === 'notfound') {
+          setErrorMessage(APP_CONFIG.ERROR_MESSAGES.BARBER_NOT_FOUND);
         }
-      });
-
-      return () => unsubscribe();
+      } catch (error) {
+        console.error('❌ Erro na inicialização:', error);
+        handleFirestoreError(error);
+      } finally {
+        setLoading(false);
+      }
     };
 
     initializeApp();
-  }, [currentRoute, loadBarberData, handleFirestoreError]);
+  }, [currentRoute, user, isAuthLoading, loadBarberData, handleFirestoreError]);
   
   // Handlers
   const handleAdminAreaClick = () => {
+    if (user && view === 'admin') {
+       // Se já está na visão de admin, não faz nada
+       return;
+    }
     if (user) {
       setView('admin');
     } else {
@@ -231,7 +212,6 @@ const App: React.FC = () => {
         if (barberId) {
           setShowLoginModal(false); // Sucesso, o onAuthStateChanged fará o resto
         } else {
-          // Rollback: deletar usuário do Auth se a criação no Firestore falhar
           await user.delete();
           setLoginError('Erro ao criar o perfil da barbearia. Tente novamente.');
         }
@@ -253,61 +233,45 @@ const App: React.FC = () => {
   const handleLogout = async () => {
     await auth.signOut();
     setView('client');
+    // A mudança de 'user' no onAuthStateChanged vai recarregar os dados corretos.
   };
 
   const handleBookingSuccess = () => {
-    // Recarregar dados após agendamento bem-sucedido
-    if (barberData && !useMockData) {
+    if (barberData) {
       loadBarberData(barberData.id);
     }
   };
 
-  // Renderização baseada na rota atual
-  if (loading) {
+  if (loading || isAuthLoading || !currentRoute) {
     return <LoadingSpinner message="Carregando..." />;
   }
 
-  // Erro de conexão ou dados não encontrados
   if (errorMessage) {
     return <ConnectionError message={errorMessage} />;
   }
 
-  // Página não encontrada (fallback)
-  if (currentRoute.type === 'notfound') {
-    return <NotFound />;
-  }
-  
-  // Se for admin e estiver logado, mostra o painel de admin
-  if (currentRoute.type === 'admin' && user && barberData) {
-    return (
-     <AdminPanel 
-       barberData={barberData} 
-       onLogout={handleLogout}
-       onDataUpdate={() => loadBarberData(barberData.id)}
-     />
-   );
- }
-
-  // Se não houver dados, mostra o spinner (pode acontecer durante transições de login)
   if (!barberData) {
     return <LoadingSpinner message="Carregando dados da barbearia..." />;
   }
+  
+  if (view === 'admin' && user) {
+     return (
+      <AdminPanel 
+        barberData={barberData} 
+        onLogout={handleLogout}
+        onDataUpdate={() => loadBarberData(barberData.id)}
+      />
+    );
+  }
 
-  // Vista do cliente (padrão)
   return (
     <div className="bg-white">
       <DebugPanel 
         user={user}
         barberData={barberData}
         view={view}
-        useMockData={useMockData}
-        onRefreshData={() => {
-          if (barberData && !useMockData) {
-            loadBarberData(barberData.id);
-          } else {
-            window.location.reload();
-          }
-        }}
+        useMockData={false} // Simplificado, já que o fallback é por erro
+        onRefreshData={() => barberData && loadBarberData(barberData.id)}
         onSetUser={setUser}
         onSetView={setView}
       />
@@ -349,34 +313,6 @@ const App: React.FC = () => {
 };
 
 
-
-// --- Dados Mock para fallback/desenvolvimento ---
-const createMockData = (): BarberData => ({
-  id: 'mock-barber',
-  profile: {
-    shopName: 'Barbearia Exemplo',
-    location: 'Av. Principal, 123, Centro, Sua Cidade - SC',
-    logoUrl: 'https://via.placeholder.com/200x80.png?text=SUA+LOGO',
-    whatsappNumber: '5541995343245',
-    slug: 'barbearia-exemplo',
-    isActive: true
-  },
-  promotions: [
-    { id: '1', title: 'Corte & Barba', description: 'Combo com 10% de desconto' },
-    { id: '2', title: 'Dia do Amigo', description: 'Traga um amigo e ganhe 15% off' }
-  ],
-  galleryImages: [
-    { id: '1', src: 'https://picsum.photos/seed/barber1/600/400', alt: 'Corte moderno' },
-    { id: '2', src: 'https://picsum.photos/seed/barber2/600/400', alt: 'Barba estilizada' }
-  ],
-  services: [
-    { id: '1', name: 'Corte Cabelo', price: 50.00 },
-    { id: '2', name: 'Barba', price: 30.00 },
-    { id: '3', name: 'Cabelo + Barba', price: 75.00 }
-  ],
-  appointments: [],
-  availability: FirestoreService.generateInitialAvailability()
-});
 
 // --- Helper para rolagem suave ---
 const scrollToSection = (sectionId: string) => {
