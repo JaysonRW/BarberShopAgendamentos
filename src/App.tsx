@@ -529,7 +529,7 @@ const Header: React.FC<{ onAdminClick: () => void; logoUrl: string; shopName: st
           className="h-12 w-auto"
           onError={(e) => {
             const target = e.target as HTMLImageElement;
-            target.src = 'https://via.placeholder.com/200x80.png?text=LOGO';
+            target.src = 'https://placehold.co/200x80/111827/FFFFFF/png?text=LOGO';
           }}
         />
       </div>
@@ -619,7 +619,7 @@ const Gallery: React.FC<{ images: GalleryImage[] }> = ({ images }) => (
               className="w-full h-full object-cover transform hover:scale-110 transition duration-500 cursor-pointer"
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
-                target.src = 'https://via.placeholder.com/400x300/6b7280/ffffff?text=Imagem';
+                target.src = 'https://placehold.co/400x300/1f2937/FFFFFF/png?text=Imagem';
               }}
             />
           </div>
@@ -1211,18 +1211,21 @@ const AdminPanel: React.FC<{
             {activeTab === 'promotions' && (
               <PromotionsTab 
                 promotions={barberData.promotions}
+                barberId={barberData.id}
                 onEdit={handleEdit}
                 isEditing={isEditing}
                 editData={editData}
                 onSave={handleSave}
                 onCancel={handleCancel}
                 onEditDataChange={setEditData}
+                onDataUpdate={onDataUpdate}
               />
             )}
             
             {activeTab === 'gallery' && (
               <GalleryTab 
                 images={barberData.galleryImages}
+                barberId={barberData.id}
                 onEdit={handleEdit}
                 isEditing={isEditing}
                 editData={editData}
@@ -1232,6 +1235,7 @@ const AdminPanel: React.FC<{
                 uploadFile={uploadFile}
                 setUploadFile={setUploadFile}
                 isUploading={isUploading}
+                onDataUpdate={onDataUpdate}
               />
             )}
             
@@ -1367,7 +1371,7 @@ const ProfileTab: React.FC<{
               <label className="block text-sm font-medium text-gray-300 mb-2">Logo</label>
               <div className="flex items-center gap-4">
                 <img 
-                  src={previewUrl || editData.logoUrl || 'https://via.placeholder.com/96x96.png?text=LOGO'}
+                  src={previewUrl || editData.logoUrl || 'https://placehold.co/96x96/374151/FFFFFF/png?text=LOGO'}
                   alt="Pré-visualização do Logo"
                   className="w-24 h-24 rounded-lg object-cover bg-gray-700"
                 />
@@ -1454,7 +1458,7 @@ const ProfileTab: React.FC<{
               className="w-24 h-24 rounded-lg object-cover flex-shrink-0"
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
-                target.src = 'https://via.placeholder.com/96x96.png?text=LOGO';
+                target.src = 'https://placehold.co/96x96/1f2937/FFFFFF/png?text=LOGO';
               }}
             />
             <div className="flex-grow w-full">
@@ -1594,13 +1598,15 @@ const ServicesTab: React.FC<{
 // Promotions Tab
 const PromotionsTab: React.FC<{
   promotions: Promotion[];
+  barberId: string;
   onEdit: (section: string, data: any) => void;
   isEditing: boolean;
   editData: any;
   onSave: () => void;
   onCancel: () => void;
   onEditDataChange: (data: any) => void;
-}> = ({ promotions, onEdit, isEditing, editData, onSave, onCancel, onEditDataChange }) => (
+  onDataUpdate: () => void;
+}> = ({ promotions, barberId, onEdit, isEditing, editData, onSave, onCancel, onEditDataChange, onDataUpdate }) => (
   <div className="space-y-6">
     <div className="flex justify-between items-center">
       <h2 className="text-3xl font-bold">Promoções</h2>
@@ -1625,7 +1631,17 @@ const PromotionsTab: React.FC<{
               Editar
             </button>
             <button
-              onClick={() => console.log('Deletar promoção:', promotion.id)}
+              onClick={async () => {
+                if (confirm('Tem certeza que deseja deletar esta promoção?')) {
+                  const success = await FirestoreService.deletePromotion(barberId, promotion.id);
+                  if (success) {
+                    alert('✅ Promoção deletada com sucesso!');
+                    onDataUpdate();
+                  } else {
+                    alert('❌ Erro ao deletar promoção.');
+                  }
+                }
+              }}
               className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700 transition duration-300"
             >
               Deletar
@@ -1682,6 +1698,7 @@ const PromotionsTab: React.FC<{
 // Gallery Tab
 const GalleryTab: React.FC<{
   images: GalleryImage[];
+  barberId: string;
   onEdit: (section: string, data: any) => void;
   isEditing: boolean;
   editData: any;
@@ -1691,7 +1708,8 @@ const GalleryTab: React.FC<{
   uploadFile: File | null;
   setUploadFile: (file: File | null) => void;
   isUploading: boolean;
-}> = ({ images, onEdit, isEditing, editData, onSave, onCancel, onEditDataChange, uploadFile, setUploadFile, isUploading }) => {
+  onDataUpdate: () => void;
+}> = ({ images, barberId, onEdit, isEditing, editData, onSave, onCancel, onEditDataChange, uploadFile, setUploadFile, isUploading, onDataUpdate }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   
@@ -1726,7 +1744,7 @@ const GalleryTab: React.FC<{
               className="w-full h-32 object-cover"
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
-                target.src = 'https://via.placeholder.com/300x200/6b7280/ffffff?text=Imagem';
+                target.src = 'https://placehold.co/300x200/1f2937/FFFFFF/png?text=Imagem';
               }}
             />
             <div className="p-3">
@@ -1739,7 +1757,17 @@ const GalleryTab: React.FC<{
                   Editar
                 </button>
                 <button
-                  onClick={() => console.log('Deletar imagem:', image.id)}
+                  onClick={async () => {
+                    if (confirm('Tem certeza que deseja deletar esta imagem?')) {
+                      const success = await FirestoreService.deleteGalleryImage(barberId, image.id, image.src);
+                      if (success) {
+                        alert('✅ Imagem deletada com sucesso!');
+                        onDataUpdate();
+                      } else {
+                        alert('❌ Erro ao deletar imagem.');
+                      }
+                    }
+                  }}
                   className="bg-red-600 text-white px-2 py-1 rounded text-xs hover:bg-red-700 transition duration-300"
                 >
                   Deletar
@@ -1758,7 +1786,7 @@ const GalleryTab: React.FC<{
               <label className="block text-sm font-medium text-gray-300 mb-2">Imagem</label>
                <div className="flex flex-col items-start gap-4">
                 <img 
-                  src={previewUrl || editData.src || 'https://via.placeholder.com/300x200/6b7280/ffffff?text=Selecione'}
+                  src={previewUrl || editData.src || 'https://placehold.co/300x200/374151/FFFFFF/png?text=Selecione'}
                   alt="Pré-visualização"
                   className="w-48 h-32 rounded-lg object-cover bg-gray-700"
                 />

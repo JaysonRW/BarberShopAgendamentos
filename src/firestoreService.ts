@@ -53,6 +53,27 @@ export class FirestoreService {
     });
   }
 
+  // DELETAR IMAGEM DO STORAGE
+  static async deleteImageFromStorage(imageUrl: string): Promise<boolean> {
+    if (!imageUrl || !imageUrl.includes('firebasestorage.googleapis.com')) {
+      console.log('URL de imagem inválida ou não é do Firebase Storage, pulando deleção.');
+      return true; // Não é um erro, apenas não há o que deletar
+    }
+    try {
+      const imageRef = storage.refFromURL(imageUrl);
+      await imageRef.delete();
+      console.log('✅ Imagem deletada do Storage com sucesso.');
+      return true;
+    } catch (error: any) {
+      if (error.code === 'storage/object-not-found') {
+        console.warn('⚠️ Imagem não encontrada no Storage, pode já ter sido deletada.');
+        return true; // Considerar sucesso se o arquivo já não existe
+      }
+      console.error('❌ Erro ao deletar imagem do Storage:', error);
+      return false;
+    }
+  }
+
   // Carregar todos os dados de um barbeiro (multi-tenant)
   static async loadBarberData(barberId: string): Promise<BarberData | null> {
     try {
@@ -151,7 +172,7 @@ export class FirestoreService {
       await db.collection('barbers').doc(barberId).set({
         profile: {
           ...initialData,
-          logoUrl: 'https://via.placeholder.com/200x80.png?text=SUA+LOGO',
+          logoUrl: 'https://placehold.co/200x80/111827/FFFFFF/png?text=SUA+LOGO',
           isActive: true,
           createdAt: now
         },
@@ -235,7 +256,6 @@ export class FirestoreService {
   
   static async deletePromotion(barberId: string, promotionId: string): Promise<boolean> {
     try {
-      // Soft delete - marcar como inativo
       await db.collection('barbers').doc(barberId).collection('promotions').doc(promotionId).update({
         isActive: false,
         deletedAt: new Date()
@@ -320,12 +340,18 @@ export class FirestoreService {
     }
   }
   
-  static async deleteGalleryImage(barberId: string, imageId: string): Promise<boolean> {
+  static async deleteGalleryImage(barberId: string, imageId: string, imageUrl: string): Promise<boolean> {
     try {
+      // Primeiro, deleta a imagem do Storage
+      await this.deleteImageFromStorage(imageUrl);
+      
+      // Depois, deleta o registro do Firestore
       await db.collection('barbers').doc(barberId).collection('gallery').doc(imageId).delete();
+      
+      console.log('✅ Imagem e registro deletados com sucesso.');
       return true;
     } catch (error) {
-      console.error('Erro ao deletar imagem:', error);
+      console.error('Erro ao deletar imagem da galeria:', error);
       return false;
     }
   }
@@ -611,7 +637,7 @@ export class FirestoreService {
         profile: {
           ...barberData,
           slug: uniqueSlug,
-          logoUrl: 'https://via.placeholder.com/200x80.png?text=SUA+LOGO',
+          logoUrl: 'https://placehold.co/200x80/111827/FFFFFF/png?text=SUA+LOGO',
           isActive: true,
           createdAt: new Date()
         },

@@ -44,3 +44,5 @@ No painel administrativo você deve ver:
 - ✅ Dados da barbearia
 - ✅ Opção de logout
 - ✅ Dados reais do Firebase (não mock)
+
+gsutil cors set cors.json gs://barbershop-agendamentos.firebasestorage.app
