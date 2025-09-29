@@ -888,6 +888,7 @@ const AdminPanel: React.FC<{
             
             {activeTab === 'appointments' && (
               <AppointmentsTab 
+                barberData={barberData}
                 appointments={barberData.appointments}
                 barberId={barberData.id}
                 onDataUpdate={onDataUpdate}
@@ -1395,7 +1396,8 @@ const AppointmentsTab: React.FC<{
   barberId: string;
   onDataUpdate: () => void;
   availability: Record<string, string[]>;
-}> = ({ appointments, barberId, onDataUpdate, availability }) => {
+  barberData: BarberData;
+}> = ({ appointments, barberId, onDataUpdate, availability, barberData }) => {
   const [view, setView] = useState<'list' | 'calendar'>('list');
   const [filter, setFilter] = useState<'Todos' | 'Pendente' | 'Confirmado'>('Todos');
   
@@ -1506,7 +1508,19 @@ const AppointmentsTab: React.FC<{
                         <button onClick={async () => {
                           const success = await FirestoreService.updateAppointmentStatus(barberId, appointment.id, 'Confirmado');
                           if (success) {
-                            alert('Agendamento confirmado com sucesso!');
+                            // Envia mensagem de confirmação via WhatsApp
+                            const clientWhatsapp = appointment.clientWhatsapp.replace(/\D/g, '');
+                            const serviceName = appointment.service?.name || 'seu serviço';
+                            const formattedDate = new Date(appointment.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+                            const time = appointment.time;
+                            const shopName = barberData.profile.shopName;
+
+                            const message = `Olá, ${appointment.clientName}! 😊\n\nSeu agendamento na *${shopName}* foi CONFIRMADO com sucesso.\n\n*Serviço:* ${serviceName}\n*Data:* ${formattedDate}\n*Hora:* ${time}\n\nAté breve!`;
+                            const whatsappUrl = `https://wa.me/${clientWhatsapp}?text=${encodeURIComponent(message)}`;
+                            
+                            window.open(whatsappUrl, '_blank');
+
+                            alert('Agendamento confirmado! Uma aba do WhatsApp com a mensagem de confirmação foi aberta.');
                             onDataUpdate();
                           } else {
                             alert('Erro ao confirmar agendamento.');
