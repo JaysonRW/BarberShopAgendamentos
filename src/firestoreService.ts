@@ -1,5 +1,5 @@
 import { db } from './firebaseConfig';
-import type { Promotion, GalleryImage, Service, Appointment } from './types';
+import type { Promotion, GalleryImage, Service, Appointment, LoyaltyClient } from './types';
 
 // Interface para dados completos do barbeiro
 export interface BarberData {
@@ -596,6 +596,110 @@ export class FirestoreService {
     } catch (error) {
       console.error('❌ Erro ao criar novo barbeiro:', error);
       return null;
+    }
+  }
+
+  // FIDELIDADE
+  static async awardLoyaltyPoints(barberId: string, clientWhatsapp: string, clientName: string, amountSpent: number): Promise<LoyaltyClient | null> {
+    const pointsToAdd = Math.floor(amountSpent / 10); // Regra: 1 ponto a cada R$10
+    if (pointsToAdd <= 0) {
+      // Se não houver pontos a adicionar, ainda retorna o cliente existente para mostrar o saldo
+      return this.getLoyaltyClient(barberId, clientWhatsapp);
+    }
+
+    const normalizedWhatsapp = clientWhatsapp.replace(/\D/g, '');
+    const docId = `${barberId}_${normalizedWhatsapp}`;
+    const clientRef = db.collection('loyaltyClients').doc(docId);
+
+    try {
+      await db.runTransaction(async (transaction) => {
+        const clientDoc = await transaction.get(clientRef);
+
+        if (clientDoc.exists) {
+            const data = clientDoc.data() as LoyaltyClient;
+            const currentPoints = data.points || 0;
+            const currentAppointments = data.lifetimeAppointments || 0;
+            
+            transaction.update(clientRef, {
+                points: currentPoints + pointsToAdd,
+                lifetimeAppointments: currentAppointments + 1,
+                clientName: clientName, // Atualiza o nome mais recente
+                updatedAt: new Date()
+            });
+        } else {
+            transaction.set(clientRef, {
+                id: docId,
+                barberId: barberId,
+                clientWhatsapp: normalizedWhatsapp,
+                clientName: clientName,
+                points: pointsToAdd,
+                lifetimeAppointments: 1,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            });
+        }
+      });
+      console.log(`✅ ${pointsToAdd} pontos concedidos a ${clientName}.`);
+      return this.getLoyaltyClient(barberId, normalizedWhatsapp);
+    } catch (error) {
+      console.error('❌ Erro ao conceder pontos de fidelidade:', error);
+      return null;
+    }
+  }
+
+  static async getLoyaltyClient(barberId: string, clientWhatsapp: string): Promise<LoyaltyClient | null> {
+    const normalizedWhatsapp = clientWhatsapp.replace(/\D/g, '');
+    const docId = `${barberId}_${normalizedWhatsapp}`;
+    const doc = await db.collection('loyaltyClients').doc(docId).get();
+    if (doc.exists) {
+      return doc.data() as LoyaltyClient;
+    }
+    return null;
+  }
+  
+  static async getLoyaltyClientsForBarber(barberId: string): Promise<LoyaltyClient[]> {
+    try {
+      const snapshot = await db.collection('loyaltyClients')
+        .where('barberId', '==', barberId)
+        .orderBy('points', 'desc')
+        .get();
+      
+      return snapshot.docs.map(doc => doc.data() as LoyaltyClient);
+    } catch (error) {
+      console.error('❌ Erro ao buscar clientes de fidelidade:', error);
+      return [];
+    }
+  }
+
+  static async redeemLoyaltyPoints(barberId: string, clientWhatsapp: string, pointsToRedeem: number): Promise<boolean> {
+    const normalizedWhatsapp = clientWhatsapp.replace(/\D/g, '');
+    const docId = `${barberId}_${normalizedWhatsapp}`;
+    const clientRef = db.collection('loyaltyClients').doc(docId);
+
+    try {
+      await db.runTransaction(async (transaction) => {
+        const clientDoc = await transaction.get(clientRef);
+
+        if (!clientDoc.exists) {
+          throw new Error("Cliente não encontrado no programa de fidelidade.");
+        }
+
+        const currentPoints = clientDoc.data()?.points || 0;
+        if (currentPoints < pointsToRedeem) {
+          throw new Error("Pontos insuficientes para resgate.");
+        }
+
+        transaction.update(clientRef, {
+          points: currentPoints - pointsToRedeem,
+          updatedAt: new Date()
+        });
+      });
+      console.log(`✅ ${pointsToRedeem} pontos resgatados para ${normalizedWhatsapp}.`);
+      return true;
+    } catch (error) {
+      console.error('❌ Erro ao resgatar pontos:', error);
+      alert(error instanceof Error ? error.message : 'Erro desconhecido');
+      return false;
     }
   }
 }

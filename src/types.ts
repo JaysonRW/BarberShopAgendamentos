@@ -28,3 +28,14 @@ export interface Appointment {
   paymentMethod: string;
   status: 'Pendente' | 'Confirmado';
 }
+
+export interface LoyaltyClient {
+  id: string;
+  barberId: string;
+  clientWhatsapp: string;
+  points: number;
+  lifetimeAppointments: number;
+  clientName: string;
+  createdAt?: any;
+  updatedAt?: any;
+}

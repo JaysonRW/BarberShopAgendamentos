@@ -1,6 +1,6 @@
 
 import React, { useState, useCallback, useMemo, ChangeEvent, useEffect } from 'react';
-import type { Promotion, GalleryImage, Service, Appointment } from './types';
+import type { Promotion, GalleryImage, Service, Appointment, LoyaltyClient } from './types';
 import { FirestoreService, BarberData } from './firestoreService.ts';
 import { auth } from './firebaseConfig';
 import { testFirebaseConnection, testFirestoreWrite, testFirestoreRead } from './firebaseTest';
@@ -59,6 +59,7 @@ const CreditCardIcon = ({className = "h-5 w-5"}) => <Icon className={className} 
 const MapPinIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M5.05 4.05a7 7 0 119.9 9.9L10 20l-4.95-5.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" />;
 const ChevronLeftIcon = ({ className = "h-6 w-6" }) => <Icon className={className} path="M15 19l-7-7 7-7" />;
 const ChevronRightIcon = ({ className = "h-6 w-6" }) => <Icon className={className} path="M5 19l7-7-7-7" />;
+const StarIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />;
 
 // Ícones específicos
 const WhatsAppIcon = ({className = "h-5 w-5 mr-2"}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 20 20" fill="currentColor"><path d="M10.3 2.2C5.7 2.2 2 5.9 2 10.5c0 1.6.4 3.1 1.3 4.4L2 20l5.2-1.3c1.3.8 2.8 1.2 4.4 1.2 4.6 0 8.3-3.7 8.3-8.3S14.9 2.2 10.3 2.2zM10.3 18.1c-1.4 0-2.8-.4-4-1.2l-.3-.2-3 .8.8-2.9-.2-.3c-.8-1.2-1.3-2.7-1.3-4.2 0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5-2.9 6.5-6.5 6.5zm3.2-4.9c-.2-.1-1.1-.5-1.3-.6-.2-.1-.3-.1-.5.1s-.5.6-.6.7c-.1.1-.2.2-.4.1-.2 0-.8-.3-1.5-.9s-1.1-1.3-1.2-1.5c-.1-.2 0-.3.1-.4l.3-.3c.1-.1.1-.2.2-.3.1-.1 0-.3-.1-.4-.1-.1-.5-1.1-.6-1.5-.2-.4-.3-.3-.5-.3h-.4c-.2 0-.4.1-.6.3s-.7.7-.7 1.6.7 1.9 1.4 2.6c1.1 1.1 2.1 1.7 3.3 1.7.2 0 .4 0 .6-.1.6-.2 1.1-.7 1.2-1.3.1-.6.1-1.1 0-1.2-.1-.1-.3-.2-.5-.3z" /></svg>;
@@ -691,7 +692,7 @@ const AdminPanel: React.FC<{
   onLogout: () => void;
   onDataUpdate: () => void;
 }> = ({ barberData, onLogout, onDataUpdate }) => {
-  const [activeTab, setActiveTab] = useState<'profile' | 'dashboard' | 'services' | 'promotions' | 'gallery' | 'appointments'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'dashboard' | 'services' | 'promotions' | 'gallery' | 'appointments' | 'loyalty'>('profile');
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<any>({});
 
@@ -812,7 +813,8 @@ const AdminPanel: React.FC<{
                 { id: 'services', label: 'Serviços', icon: <ScissorsIcon /> },
                 { id: 'promotions', label: 'Promoções', icon: <TagIcon /> },
                 { id: 'gallery', label: 'Galeria', icon: <GalleryIcon /> },
-                { id: 'appointments', label: 'Agendamentos', icon: <CalendarIcon /> }
+                { id: 'appointments', label: 'Agendamentos', icon: <CalendarIcon /> },
+                { id: 'loyalty', label: 'Fidelidade', icon: <StarIcon /> }
               ].map(tab => (
                 <button
                   key={tab.id}
@@ -893,6 +895,12 @@ const AdminPanel: React.FC<{
                 barberId={barberData.id}
                 onDataUpdate={onDataUpdate}
                 availability={barberData.availability}
+              />
+            )}
+            
+            {activeTab === 'loyalty' && (
+              <LoyaltyTab 
+                barberId={barberData.id}
               />
             )}
           </div>
@@ -1508,19 +1516,30 @@ const AppointmentsTab: React.FC<{
                         <button onClick={async () => {
                           const success = await FirestoreService.updateAppointmentStatus(barberId, appointment.id, 'Confirmado');
                           if (success) {
-                            // Envia mensagem de confirmação via WhatsApp
+                            const loyaltyData = await FirestoreService.awardLoyaltyPoints(
+                              barberId,
+                              appointment.clientWhatsapp,
+                              appointment.clientName,
+                              appointment.service?.price || 0
+                            );
+
                             const clientWhatsapp = appointment.clientWhatsapp.replace(/\D/g, '');
                             const serviceName = appointment.service?.name || 'seu serviço';
                             const formattedDate = new Date(appointment.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
                             const time = appointment.time;
                             const shopName = barberData.profile.shopName;
+                            
+                            const pointsAwarded = Math.floor((appointment.service?.price || 0) / 10);
+                            const pointsMessage = loyaltyData && pointsAwarded > 0
+                              ? `\n\nVocê ganhou ${pointsAwarded} pontos! Seu saldo agora é de *${loyaltyData.points}* pontos. ✨`
+                              : `\n\nSeu saldo de pontos é *${loyaltyData?.points || 0}*.`;
 
-                            const message = `Olá, ${appointment.clientName}! 😊\n\nSeu agendamento na *${shopName}* foi CONFIRMADO com sucesso.\n\n*Serviço:* ${serviceName}\n*Data:* ${formattedDate}\n*Hora:* ${time}\n\nAté breve!`;
+                            const message = `Olá, ${appointment.clientName}! 😊\n\nSeu agendamento na *${shopName}* foi CONFIRMADO com sucesso.\n\n*Serviço:* ${serviceName}\n*Data:* ${formattedDate}\n*Hora:* ${time}${pointsMessage}\n\nAté breve!`;
                             const whatsappUrl = `https://wa.me/${clientWhatsapp}?text=${encodeURIComponent(message)}`;
                             
                             window.open(whatsappUrl, '_blank');
 
-                            alert('Agendamento confirmado! Uma aba do WhatsApp com a mensagem de confirmação foi aberta.');
+                            alert('Agendamento confirmado! Uma aba do WhatsApp com a mensagem de confirmação e fidelidade foi aberta.');
                             onDataUpdate();
                           } else {
                             alert('Erro ao confirmar agendamento.');
@@ -1591,6 +1610,135 @@ const AppointmentsTab: React.FC<{
               )}
             </div>
           )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Loyalty Tab
+const LoyaltyTab: React.FC<{ barberId: string }> = ({ barberId }) => {
+  const [clients, setClients] = useState<LoyaltyClient[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedClient, setSelectedClient] = useState<LoyaltyClient | null>(null);
+  const [isRedeemModalOpen, setIsRedeemModalOpen] = useState(false);
+
+  const rewards = [
+    { points: 50, description: 'R$ 20 de desconto' },
+    { points: 100, description: 'Corte Grátis' },
+  ];
+  
+  const fetchClients = useCallback(async () => {
+    setIsLoading(true);
+    const loyaltyClients = await FirestoreService.getLoyaltyClientsForBarber(barberId);
+    setClients(loyaltyClients);
+    setIsLoading(false);
+  }, [barberId]);
+
+  useEffect(() => {
+    fetchClients();
+  }, [fetchClients]);
+
+  const filteredClients = useMemo(() => clients.filter(client =>
+    client.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    client.clientWhatsapp.includes(searchTerm)
+  ), [clients, searchTerm]);
+
+  const handleRedeem = async (pointsToRedeem: number) => {
+    if (!selectedClient) return;
+
+    const success = await FirestoreService.redeemLoyaltyPoints(
+      barberId,
+      selectedClient.clientWhatsapp,
+      pointsToRedeem
+    );
+
+    if (success) {
+      alert(`✅ ${pointsToRedeem} pontos resgatados com sucesso!`);
+      setIsRedeemModalOpen(false);
+      fetchClients(); // Refresh client list
+    }
+  };
+  
+  return (
+    <div className="space-y-6">
+      <h2 className="text-3xl font-bold">Programa de Fidelidade</h2>
+
+      <div className="bg-gray-800 rounded-lg p-6">
+        <input
+          type="text"
+          placeholder="Buscar cliente por nome ou WhatsApp..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full px-4 py-3 bg-gray-700 border-2 border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-white"
+        />
+
+        {isLoading ? (
+          <p className="text-center py-8">Carregando clientes...</p>
+        ) : (
+          <div className="mt-6 space-y-4">
+            {filteredClients.length > 0 ? filteredClients.map(client => (
+              <div key={client.id} className="bg-gray-700 p-4 rounded-lg flex justify-between items-center">
+                <div>
+                  <p className="font-bold text-lg">{client.clientName}</p>
+                  <p className="text-sm text-gray-400">{client.clientWhatsapp}</p>
+                  <p className="text-sm text-gray-400">{client.lifetimeAppointments} agendamentos</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-2xl font-bold text-yellow-400 flex items-center gap-2">
+                    <StarIcon className="h-6 w-6" /> {client.points}
+                  </p>
+                  <button
+                    onClick={() => {
+                      setSelectedClient(client);
+                      setIsRedeemModalOpen(true);
+                    }}
+                    className="mt-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition duration-300"
+                  >
+                    Resgatar
+                  </button>
+                </div>
+              </div>
+            )) : (
+              <p className="text-center py-8 text-gray-400">Nenhum cliente encontrado.</p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {isRedeemModalOpen && selectedClient && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
+          <div className="bg-gray-800 p-8 rounded-xl shadow-2xl text-white w-full max-w-md m-4">
+            <h3 className="text-2xl font-bold text-center mb-2">Resgatar Pontos</h3>
+            <p className="text-center text-gray-300 mb-1">Cliente: {selectedClient.clientName}</p>
+            <p className="text-center text-lg font-bold text-yellow-400 mb-6">Saldo: {selectedClient.points} pontos</p>
+            
+            <div className="space-y-4">
+              {rewards.map(reward => (
+                <div key={reward.points} className="bg-gray-700 p-4 rounded-lg flex justify-between items-center">
+                  <div>
+                    <p className="font-semibold">{reward.description}</p>
+                    <p className="text-sm text-yellow-400">{reward.points} pontos</p>
+                  </div>
+                  <button
+                    onClick={() => handleRedeem(reward.points)}
+                    disabled={selectedClient.points < reward.points}
+                    className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:bg-gray-500 disabled:cursor-not-allowed"
+                  >
+                    Resgatar
+                  </button>
+                </div>
+              ))}
+            </div>
+            
+            <button
+              onClick={() => setIsRedeemModalOpen(false)}
+              className="mt-6 w-full bg-gray-600 font-bold py-3 px-6 rounded-lg uppercase hover:bg-gray-500 transition duration-300"
+            >
+              Fechar
+            </button>
+          </div>
         </div>
       )}
     </div>
