@@ -456,29 +456,35 @@ export class FirestoreService {
       // Se não encontrou em public-slugs, buscar diretamente na coleção barbers
       const barbersSnapshot = await db.collection('barbers')
         .where('profile.slug', '==', slug)
-        .where('profile.isActive', '==', true)
+        // .where('profile.isActive', '==', true) // Removido para evitar a necessidade de índice composto
         .limit(1)
         .get();
       
       if (!barbersSnapshot.empty) {
         const barberDoc = barbersSnapshot.docs[0];
-        const barberId = barberDoc.id;
-        console.log(`✅ Barbeiro encontrado diretamente na coleção barbers com ID: ${barberId}`);
-        
-        // Criar automaticamente o registro em public-slugs para futuras consultas
-        try {
-          await db.collection('public-slugs').doc(slug).set({
-            barberId: barberId,
-            isActive: true,
-            lastUpdated: new Date(),
-            autoCreated: true
-          });
-          console.log(`✅ Registro criado automaticamente em public-slugs para slug: ${slug}`);
-        } catch (createError) {
-          console.warn(`⚠️ Não foi possível criar registro em public-slugs:`, createError);
+
+        // Verificar manualmente se o perfil está ativo após a busca
+        if (barberDoc.data()?.profile?.isActive) {
+          const barberId = barberDoc.id;
+          console.log(`✅ Barbeiro encontrado diretamente na coleção barbers com ID: ${barberId}`);
+          
+          // Criar automaticamente o registro em public-slugs para futuras consultas
+          try {
+            await db.collection('public-slugs').doc(slug).set({
+              barberId: barberId,
+              isActive: true,
+              lastUpdated: new Date(),
+              autoCreated: true
+            });
+            console.log(`✅ Registro criado automaticamente em public-slugs para slug: ${slug}`);
+          } catch (createError) {
+            console.warn(`⚠️ Não foi possível criar registro em public-slugs:`, createError);
+          }
+          
+          return barberId;
+        } else {
+           console.log(`- Barbeiro com slug '${slug}' encontrado, mas está inativo.`);
         }
-        
-        return barberId;
       }
       
       console.log(`❌ Slug ${slug} não encontrado em nenhuma coleção`);

@@ -200,8 +200,11 @@ const App: React.FC = () => {
               return;
             }
           } else if (currentRoute.type === 'admin' && !currentUser) {
-            // Tentativa de acessar admin sem estar logado
-            setShowLoginModal(true);
+            // Tentativa de acessar admin sem estar logado.
+            // O modal de login será aberto apenas pelo clique no botão,
+            // enquanto isso, a visão do cliente é carregada.
+            // setShowLoginModal(true); // Removido para atender ao novo fluxo
+
              // Load client data for background view
             if (currentRoute.slug) {
                 const barberId = await FirestoreService.findBarberBySlug(currentRoute.slug);
