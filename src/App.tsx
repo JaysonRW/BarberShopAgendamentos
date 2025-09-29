@@ -98,7 +98,7 @@ const HomePage: React.FC = () => (
 
 // === NO SEU COMPONENTE APP PRINCIPAL ===
 // Substitua a lógica de inicialização existente por esta versão melhorada:
-
+// FIX: Merged two 'App' components into one and defined 'handleFirestoreError' to fix scope issues.
 const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [barberData, setBarberData] = useState<BarberData | null>(null);
@@ -108,9 +108,20 @@ const App: React.FC = () => {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [loginError, setLoginError] = useState('');
   const [useMockData, setUseMockData] = useState(false);
-  
+
   // Usar o hook de roteamento
   const currentRoute = useRouting();
+
+  // Helper para lidar com erros do Firestore de forma centralizada
+  const handleFirestoreError = useCallback((error: any) => {
+    console.error('Firestore Error:', error);
+    if (error.code === 'unavailable') {
+      setErrorMessage(APP_CONFIG.ERROR_MESSAGES.CONNECTION_ERROR);
+    } else {
+      setErrorMessage(APP_CONFIG.ERROR_MESSAGES.FIREBASE_ERROR);
+    }
+    setBarberData(null);
+  }, []);
 
   // Carregar dados do barbeiro (função existente mantida igual)
   const loadBarberData = useCallback(async (barberId: string | null) => {
@@ -191,6 +202,13 @@ const App: React.FC = () => {
           } else if (currentRoute.type === 'admin' && !currentUser) {
             // Tentativa de acessar admin sem estar logado
             setShowLoginModal(true);
+             // Load client data for background view
+            if (currentRoute.slug) {
+                const barberId = await FirestoreService.findBarberBySlug(currentRoute.slug);
+                if (barberId) {
+                    await loadBarberData(barberId);
+                }
+            }
             setLoading(false);
             return;
           }
@@ -208,6 +226,77 @@ const App: React.FC = () => {
 
     initializeApp();
   }, [currentRoute, loadBarberData, handleFirestoreError]);
+  
+  // Handlers
+  const handleAdminAreaClick = () => {
+    if (user) {
+      setView('admin');
+    } else {
+      setLoginError('');
+      setShowLoginModal(true);
+    }
+  };
+
+  const handleLogin = async (email: string, password: string) => {
+    try {
+      setLoginError('');
+      await auth.signInWithEmailAndPassword(email, password);
+      setShowLoginModal(false);
+      // onAuthStateChanged irá lidar com o resto
+    } catch (error) {
+      console.error('Erro no login:', error);
+      setLoginError('Email ou senha inválidos. Tente novamente.');
+    }
+  };
+  
+  const handleSignUp = async (data: SignUpData) => {
+    try {
+      setLoginError('');
+      const userCredential = await auth.createUserWithEmailAndPassword(data.email, data.pass);
+      const user = userCredential.user;
+  
+      if (user) {
+        const barberProfileData = {
+          shopName: data.shopName,
+          location: data.location,
+          whatsappNumber: data.whatsappNumber,
+          email: data.email,
+        };
+        const barberId = await FirestoreService.createNewBarber(user.uid, barberProfileData);
+  
+        if (barberId) {
+          setShowLoginModal(false); // Sucesso, o onAuthStateChanged fará o resto
+        } else {
+          // Rollback: deletar usuário do Auth se a criação no Firestore falhar
+          await user.delete();
+          setLoginError('Erro ao criar o perfil da barbearia. Tente novamente.');
+        }
+      } else {
+        throw new Error('Usuário não foi criado no Firebase Auth.');
+      }
+    } catch (error: any) {
+      console.error('Erro no cadastro:', error);
+      if (error.code === 'auth/email-already-in-use') {
+        setLoginError('Este email já está em uso por outra conta.');
+      } else if (error.code === 'auth/weak-password') {
+        setLoginError('A senha deve ter pelo menos 6 caracteres.');
+      } else {
+        setLoginError('Ocorreu um erro ao criar a conta. Verifique os dados e tente novamente.');
+      }
+    }
+  };
+
+  const handleLogout = async () => {
+    await auth.signOut();
+    setView('client');
+  };
+
+  const handleBookingSuccess = () => {
+    // Recarregar dados após agendamento bem-sucedido
+    if (barberData && !useMockData) {
+      loadBarberData(barberData.id);
+    }
+  };
 
   // Renderização baseada na rota atual
   if (loading) {
@@ -219,18 +308,85 @@ const App: React.FC = () => {
     return <HomePage />;
   }
 
-  // Página não encontrada
-  if (currentRoute.type === 'notfound') {
-    return <NotFound />;
-  }
-
-  // Erro de conexão
+  // Erro de conexão ou dados não encontrados
   if (errorMessage) {
     return <ConnectionError message={errorMessage} />;
   }
 
-  // Restante da lógica de renderização existente...
-  // (manter o código existente para admin panel, client view, etc.)
+  // Página não encontrada (fallback)
+  if (currentRoute.type === 'notfound') {
+    return <NotFound />;
+  }
+  
+  // Se for admin e estiver logado, mostra o painel de admin
+  if (currentRoute.type === 'admin' && user && barberData) {
+    return (
+     <AdminPanel 
+       barberData={barberData} 
+       onLogout={handleLogout}
+       onDataUpdate={() => loadBarberData(barberData.id)}
+     />
+   );
+ }
+
+  // Se não houver dados, mostra o spinner (pode acontecer durante transições de login)
+  if (!barberData) {
+    return <LoadingSpinner message="Carregando dados da barbearia..." />;
+  }
+
+  // Vista do cliente (padrão)
+  return (
+    <div className="bg-white">
+      <DebugPanel 
+        user={user}
+        barberData={barberData}
+        view={view}
+        useMockData={useMockData}
+        onRefreshData={() => {
+          if (barberData && !useMockData) {
+            loadBarberData(barberData.id);
+          } else {
+            window.location.reload();
+          }
+        }}
+        onSetUser={setUser}
+        onSetView={setView}
+      />
+      
+      {showLoginModal && (
+        <LoginModal
+          onClose={() => setShowLoginModal(false)}
+          onLogin={handleLogin}
+          onSignUp={handleSignUp}
+          error={loginError}
+          clearError={() => setLoginError('')}
+        />
+      )}
+      
+      <Header 
+        onAdminClick={handleAdminAreaClick} 
+        logoUrl={barberData.profile.logoUrl} 
+        shopName={barberData.profile.shopName}
+      />
+      
+      <main>
+        <Hero shopName={barberData.profile.shopName} />
+        <Promotions promotions={barberData.promotions} />
+        <Gallery images={barberData.galleryImages} />
+        <BookingForm
+          services={barberData.services}
+          availability={barberData.availability}
+          barberData={barberData}
+          onBookingSuccess={handleBookingSuccess}
+        />
+      </main>
+      
+      <Footer 
+        shopName={barberData.profile.shopName} 
+        location={barberData.profile.location} 
+      />
+    </div>
+  );
 };
 
 
@@ -853,27 +1009,61 @@ const Footer: React.FC<{ shopName: string; location: string }> = ({ shopName, lo
   </footer>
 );
 
-// Modal de Login
+// Interface para dados de cadastro
+interface SignUpData {
+  email: string;
+  pass: string;
+  shopName: string;
+  location: string;
+  whatsappNumber: string;
+}
+
+// Modal de Login e Cadastro
 const LoginModal: React.FC<{
   onClose: () => void;
   onLogin: (email: string, pass: string) => Promise<void>;
+  onSignUp: (data: SignUpData) => Promise<void>;
   error: string;
-}> = ({ onClose, onLogin, error }) => {
+  clearError: () => void;
+}> = ({ onClose, onLogin, onSignUp, error, clearError }) => {
+  const [mode, setMode] = useState<'login' | 'signup'>('login');
+  
+  // State for both forms
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [shopName, setShopName] = useState('');
+  const [location, setLocation] = useState('');
+  const [whatsapp, setWhatsapp] = useState('');
+  
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    await onLogin(email, password);
+    if (mode === 'login') {
+      await onLogin(email, password);
+    } else {
+      await onSignUp({ email, pass: password, shopName, location, whatsappNumber: whatsapp });
+    }
     setIsLoading(false);
+  };
+
+  const switchMode = (newMode: 'login' | 'signup') => {
+    setMode(newMode);
+    clearError();
+    setEmail('');
+    setPassword('');
+    setShopName('');
+    setLocation('');
+    setWhatsapp('');
   };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
       <div className="bg-gray-800 p-8 rounded-xl shadow-2xl text-white w-full max-w-md m-4">
-        <h2 className="text-3xl font-bold text-center mb-6">Acesso do Barbeiro</h2>
+        <h2 className="text-3xl font-bold text-center mb-6">
+          {mode === 'login' ? 'Acesso do Barbeiro' : 'Crie sua Conta'}
+        </h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <input
             type="email"
@@ -887,18 +1077,28 @@ const LoginModal: React.FC<{
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Senha"
+            placeholder="Senha (mínimo 6 caracteres)"
             className="w-full p-3 bg-gray-700 rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-red-500"
             required
           />
+
+          {mode === 'signup' && (
+            <>
+              <input type="text" value={shopName} onChange={(e) => setShopName(e.target.value)} placeholder="Nome da Barbearia" required className="w-full p-3 bg-gray-700 rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-red-500"/>
+              <input type="text" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Endereço" required className="w-full p-3 bg-gray-700 rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-red-500"/>
+              <input type="tel" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="WhatsApp (Ex: 55419...)" required className="w-full p-3 bg-gray-700 rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-red-500"/>
+            </>
+          )}
+
           {error && <p className="text-red-400 text-sm text-center">{error}</p>}
+
           <div className="flex flex-col gap-4 pt-4">
             <button
               type="submit"
               disabled={isLoading}
               className="w-full bg-red-600 font-bold py-3 px-6 rounded-lg uppercase hover:bg-red-700 transition duration-300 disabled:bg-gray-500"
             >
-              {isLoading ? 'Entrando...' : 'Entrar'}
+              {isLoading ? (mode === 'login' ? 'Entrando...' : 'Cadastrando...') : (mode === 'login' ? 'Entrar' : 'Cadastrar')}
             </button>
             <button
               type="button"
@@ -909,10 +1109,16 @@ const LoginModal: React.FC<{
             </button>
           </div>
         </form>
+        <div className="text-center mt-6">
+          <button onClick={() => switchMode(mode === 'login' ? 'signup' : 'login')} className="text-sm text-cyan-400 hover:text-cyan-300">
+            {mode === 'login' ? 'Não tem uma conta? Cadastre-se' : 'Já tem uma conta? Entrar'}
+          </button>
+        </div>
       </div>
     </div>
   );
 };
+
 
 // Painel Administrativo Completo
 const AdminPanel: React.FC<{
@@ -2012,274 +2218,6 @@ const LoyaltyTab: React.FC<{ barberId: string }> = ({ barberId }) => {
               className="mt-6 w-full bg-gray-600 font-bold py-3 px-6 rounded-lg uppercase hover:bg-gray-500 transition duration-300"
             >
               Fechar
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-
-// COMPONENTE PRINCIPAL
-const App: React.FC = () => {
-  const [loading, setLoading] = useState(true);
-  const [barberData, setBarberData] = useState<BarberData | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [user, setUser] = useState<any | null>(null);
-  const [view, setView] = useState<'client' | 'admin'>('client');
-  const [showLoginModal, setShowLoginModal] = useState(false);
-  const [loginError, setLoginError] = useState('');
-  const [useMockData, setUseMockData] = useState(false);
-
-  // Helper para lidar com erros do Firestore de forma centralizada
-  const handleFirestoreError = useCallback((error: any) => {
-    console.error('Firestore Error:', error);
-    if (error.code === 'unavailable') {
-      setErrorMessage(APP_CONFIG.ERROR_MESSAGES.CONNECTION_ERROR);
-    } else {
-      setErrorMessage(APP_CONFIG.ERROR_MESSAGES.FIREBASE_ERROR);
-    }
-    setBarberData(null);
-  }, []);
-
-  // Carregar dados do barbeiro
-  const loadBarberData = useCallback(async (barberId: string | null) => {
-    if (!barberId) {
-      setBarberData(null);
-      return;
-    }
-    
-    try {
-      const data = await FirestoreService.loadBarberData(barberId);
-      setBarberData(data);
-      if (data) {
-        setUseMockData(false);
-        setErrorMessage(null); // Limpa erros anteriores em caso de sucesso
-      }
-    } catch (error) {
-      handleFirestoreError(error);
-    }
-  }, [handleFirestoreError]);
-
-  // Inicialização
-  useEffect(() => {
-    const initializeApp = async () => {
-      console.log('🚀 Inicializando aplicação...');
-      setLoading(true);
-      setErrorMessage(null); // Reseta o erro ao inicializar
-
-      // Teste de conectividade com Firebase
-      debugLog('🔧 Testando conectividade com Firebase...');
-      const isConnected = await testFirebaseConnection();
-      if (!isConnected) {
-        console.error('❌ Falha na conexão com Firebase');
-        setErrorMessage(APP_CONFIG.ERROR_MESSAGES.CONNECTION_ERROR);
-        setLoading(false);
-        return;
-      }
-
-      const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
-        try {
-          console.log('👤 Estado de autenticação:', currentUser ? 'Logado' : 'Não logado');
-          setUser(currentUser);
-          
-          if (currentUser) {
-            console.log('🔐 Usuário logado, carregando painel administrativo...');
-            console.log('👤 UID do usuário logado:', currentUser.uid);
-            
-            // Buscar barbeiro pelo userID
-            const barberId = await FirestoreService.findBarberByUserId(currentUser.uid);
-            if (barberId) {
-              console.log('✅ Barbeiro encontrado para o usuário:', barberId);
-              await loadBarberData(barberId);
-              setView('admin');
-            } else {
-              console.log('⚠️ Nenhum barbeiro encontrado para este usuário, usando dados mock');
-              setBarberData(createMockData());
-              setUseMockData(true);
-              setView('admin');
-            }
-          } else {
-            console.log('🌐 Usuário não logado, carregando portal do cliente...');
-            // Usuário não logado - carregar por slug público
-            setView('client');
-            const slug = getBarberSlugFromUrl();
-            console.log('🔍 Slug da URL:', slug);
-            
-            if (slug) {
-              console.log('🔎 Buscando barbeiro por slug:', slug);
-              const barberId = await FirestoreService.findBarberBySlug(slug);
-              console.log('🆔 ID do barbeiro encontrado:', barberId);
-              
-              if (barberId) {
-                await loadBarberData(barberId);
-              } else {
-                // Slug não encontrado, usar dados mock
-                console.log('⚠️ Slug não encontrado no Firebase, usando dados mock para desenvolvimento.');
-                setBarberData(createMockData());
-                setUseMockData(true);
-              }
-            } else {
-              // Sem slug, usar dados mock para desenvolvimento
-              console.log('⚠️ Nenhum slug na URL, usando dados mock para desenvolvimento.');
-              setBarberData(createMockData());
-              setUseMockData(true);
-            }
-          }
-        } catch (error) {
-          console.error('❌ Erro na inicialização:', error);
-          handleFirestoreError(error);
-        } finally {
-          setLoading(false);
-          console.log('✅ Inicialização concluída');
-        }
-      });
-
-      return () => unsubscribe();
-    };
-
-    initializeApp();
-  }, [loadBarberData, handleFirestoreError]);
-
-  // Handlers
-  const handleAdminAreaClick = () => {
-    if (user) {
-      setView('admin');
-    } else {
-      setLoginError('');
-      setShowLoginModal(true);
-    }
-  };
-
-  const handleLogin = async (email: string, password: string) => {
-    try {
-      await auth.signInWithEmailAndPassword(email, password);
-      setShowLoginModal(false);
-      setView('admin');
-    } catch (error) {
-      console.error('Erro no login:', error);
-      setLoginError('Email ou senha inválidos. Tente novamente.');
-    }
-  };
-
-  const handleLogout = async () => {
-    await auth.signOut();
-    setView('client');
-  };
-
-  const handleBookingSuccess = () => {
-    // Recarregar dados após agendamento bem-sucedido
-    if (barberData && !useMockData) {
-      loadBarberData(barberData.id);
-    }
-  };
-
-  // Renderização
-  if (loading) {
-    return <LoadingSpinner message="Carregando barbearia..." />;
-  }
-
-  // Renderiza a tela de erro se houver uma mensagem de erro
-  if (errorMessage) {
-    return <ConnectionError message={errorMessage} />;
-  }
-
-  // Se não houver dados E não houver erro, usar dados mock como fallback
-  if (!barberData) {
-    console.log('⚠️ Nenhum dado carregado, usando fallback para dados mock');
-    setBarberData(createMockData());
-    setUseMockData(true);
-    // Retornar loading enquanto carrega os dados mock
-    return <LoadingSpinner message="Carregando dados de demonstração..." />;
-  }
-
-  // Vista administrativa
-  if (view === 'admin' && user) {
-    // Permitir acesso com dados mock ou se for o barbeiro correto
-    // Verificar se o user.uid corresponde ao userID do barbeiro ou ao ID do documento
-    const isAuthorized = useMockData || 
-                        user.uid === barberData.id || 
-                        (barberData.profile as any).userID === user.uid;
-    
-    if (isAuthorized) {
-       return (
-        <AdminPanel 
-          barberData={barberData} 
-          onLogout={handleLogout}
-          onDataUpdate={() => loadBarberData(barberData.id)}
-        />
-      );
-    }
-    
-    console.log('❌ Usuário não autorizado. user.uid:', user.uid, 'barberData.id:', barberData.id, 'userID:', (barberData.profile as any).userID);
-    handleLogout();
-    return <LoadingSpinner message="Redirecionando..." />;
-  }
-
-  // Vista do cliente
-  return (
-    <div className="bg-white">
-      <DebugPanel 
-        user={user}
-        barberData={barberData}
-        view={view}
-        useMockData={useMockData}
-        onRefreshData={() => {
-          if (barberData && !useMockData) {
-            loadBarberData(barberData.id);
-          } else {
-            window.location.reload();
-          }
-        }}
-        onSetUser={setUser}
-        onSetView={setView}
-      />
-      
-      {showLoginModal && (
-        <LoginModal
-          onClose={() => setShowLoginModal(false)}
-          onLogin={handleLogin}
-          error={loginError}
-        />
-      )}
-      
-      <Header 
-        onAdminClick={handleAdminAreaClick} 
-        logoUrl={barberData.profile.logoUrl} 
-        shopName={barberData.profile.shopName}
-      />
-      
-      <main>
-        <Hero shopName={barberData.profile.shopName} />
-        <Promotions promotions={barberData.promotions} />
-        <Gallery images={barberData.galleryImages} />
-        <BookingForm
-          services={barberData.services}
-          availability={barberData.availability}
-          barberData={barberData}
-          onBookingSuccess={handleBookingSuccess}
-        />
-      </main>
-      
-      <Footer 
-        shopName={barberData.profile.shopName} 
-        location={barberData.profile.location} 
-      />
-      
-      {useMockData && (
-        <div className="fixed bottom-4 right-4 bg-yellow-500 text-black px-4 py-2 rounded-lg text-sm font-bold">
-          <div className="flex flex-col space-y-2">
-            <span>Modo de Desenvolvimento (Dados Mock)</span>
-            <button
-              onClick={() => {
-                console.log('🧪 Testando painel administrativo com dados mock...');
-                setView('admin');
-                setUser({ uid: 'mock-user', email: 'teste@exemplo.com' });
-              }}
-              className="bg-red-600 text-white px-3 py-1 rounded text-xs hover:bg-red-700 transition duration-300"
-            >
-              Testar Painel Admin
             </button>
           </div>
         </div>
