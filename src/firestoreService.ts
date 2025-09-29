@@ -1,4 +1,4 @@
-import { db, storage } from './firebaseConfig';
+import { db, storage, auth } from './firebaseConfig';
 import type { Promotion, GalleryImage, Service, Appointment, LoyaltyClient } from './types';
 
 // Interface para dados completos do barbeiro
@@ -24,7 +24,12 @@ export interface BarberData {
 export class FirestoreService {
   
   // UPLOAD DE IMAGEM
-  static uploadImage(barberId: string, file: File, folder: 'logos' | 'gallery', onProgress: (progress: number) => void): Promise<string> {
+  static uploadImage(file: File, folder: 'logos' | 'gallery', onProgress: (progress: number) => void): Promise<string> {
+    const barberId = auth.currentUser?.uid;
+    if (!barberId) {
+      return Promise.reject(new Error("Usuário não autenticado para fazer upload."));
+    }
+    
     return new Promise((resolve, reject) => {
       const fileName = `${folder}/${Date.now()}_${file.name}`;
       const storageRef = storage.ref();

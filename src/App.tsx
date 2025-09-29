@@ -1051,7 +1051,6 @@ const AdminPanel: React.FC<{
       if (uploadFile) {
         const folder = activeTab === 'profile' ? 'logos' : 'gallery';
         const newUrl = await FirestoreService.uploadImage(
-          barberData.id, 
           uploadFile, 
           folder,
           (progress) => setUploadProgress(progress)
