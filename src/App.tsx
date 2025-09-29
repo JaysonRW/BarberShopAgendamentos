@@ -1,4 +1,5 @@
 
+
 import React, { useState, useCallback, useMemo, ChangeEvent, useEffect } from 'react';
 import type { Promotion, GalleryImage, Service, Appointment, LoyaltyClient } from './types';
 import { FirestoreService, BarberData } from './firestoreService.ts';
@@ -1624,10 +1625,10 @@ const LoyaltyTab: React.FC<{ barberId: string }> = ({ barberId }) => {
   const [selectedClient, setSelectedClient] = useState<LoyaltyClient | null>(null);
   const [isRedeemModalOpen, setIsRedeemModalOpen] = useState(false);
 
-  const rewards = [
+  const rewards = useMemo(() => [
     { points: 50, description: 'R$ 20 de desconto' },
     { points: 100, description: 'Corte Grátis' },
-  ];
+  ].sort((a, b) => a.points - b.points), []);
   
   const fetchClients = useCallback(async () => {
     setIsLoading(true);
@@ -1660,6 +1661,18 @@ const LoyaltyTab: React.FC<{ barberId: string }> = ({ barberId }) => {
       fetchClients(); // Refresh client list
     }
   };
+
+  const getNextReward = (currentPoints: number) => {
+    const available = rewards.filter(r => r.points <= currentPoints);
+    if (available.length > 0) {
+      return { type: 'available', reward: available[available.length - 1] };
+    }
+    const next = rewards.find(r => r.points > currentPoints);
+    if (next) {
+      return { type: 'next', reward: next, pointsNeeded: next.points - currentPoints };
+    }
+    return null;
+  };
   
   return (
     <div className="space-y-6">
@@ -1671,36 +1684,71 @@ const LoyaltyTab: React.FC<{ barberId: string }> = ({ barberId }) => {
           placeholder="Buscar cliente por nome ou WhatsApp..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full px-4 py-3 bg-gray-700 border-2 border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-white"
+          className="w-full px-4 py-3 bg-gray-700 border-2 border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-white mb-6"
         />
 
         {isLoading ? (
-          <p className="text-center py-8">Carregando clientes...</p>
+          <p className="text-center py-8 text-gray-400">Carregando clientes...</p>
         ) : (
-          <div className="mt-6 space-y-4">
-            {filteredClients.length > 0 ? filteredClients.map(client => (
-              <div key={client.id} className="bg-gray-700 p-4 rounded-lg flex justify-between items-center">
-                <div>
-                  <p className="font-bold text-lg">{client.clientName}</p>
-                  <p className="text-sm text-gray-400">{client.clientWhatsapp}</p>
-                  <p className="text-sm text-gray-400">{client.lifetimeAppointments} agendamentos</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-2xl font-bold text-yellow-400 flex items-center gap-2">
-                    <StarIcon className="h-6 w-6" /> {client.points}
-                  </p>
-                  <button
-                    onClick={() => {
-                      setSelectedClient(client);
-                      setIsRedeemModalOpen(true);
-                    }}
-                    className="mt-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition duration-300"
-                  >
-                    Resgatar
-                  </button>
-                </div>
+          <div>
+            {filteredClients.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredClients.map(client => {
+                  const rewardInfo = getNextReward(client.points);
+                  return (
+                    <div key={client.id} className="bg-gray-700 p-6 rounded-lg flex flex-col justify-between shadow-lg">
+                      <div>
+                        <div className="flex items-center gap-4 mb-4">
+                           <div className="flex-shrink-0 w-12 h-12 bg-gray-600 rounded-full flex items-center justify-center">
+                              <UserIcon className="h-6 w-6 text-gray-400" />
+                           </div>
+                           <div>
+                              <p className="font-bold text-lg text-white">{client.clientName}</p>
+                              <p className="text-sm text-gray-400">{client.clientWhatsapp}</p>
+                           </div>
+                        </div>
+                        
+                        <div className="text-center my-4">
+                          <p className="text-5xl font-bold text-yellow-400 flex items-center justify-center gap-2">
+                            <StarIcon className="h-8 w-8" /> {client.points}
+                          </p>
+                          <p className="text-sm text-gray-400">Pontos</p>
+                        </div>
+
+                        <div className="bg-gray-800 p-3 rounded-md text-center h-20 flex flex-col justify-center">
+                          {rewardInfo?.type === 'available' && (
+                            <>
+                              <p className="text-sm font-semibold text-green-400">Recompensa Disponível!</p>
+                              <p className="text-xs text-gray-300">{rewardInfo.reward.description}</p>
+                            </>
+                          )}
+                          {rewardInfo?.type === 'next' && (
+                            <>
+                              <p className="text-sm font-semibold text-gray-300">Próxima Recompensa</p>
+                              <p className="text-xs text-gray-400">Faltam {rewardInfo.pointsNeeded} pontos para "{rewardInfo.reward.description}"</p>
+                            </>
+                          )}
+                           {!rewardInfo && (
+                             <p className="text-sm text-gray-400">Parabéns! Todas as recompensas disponíveis foram resgatadas.</p>
+                           )}
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          setSelectedClient(client);
+                          setIsRedeemModalOpen(true);
+                        }}
+                        className="mt-6 w-full bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition duration-300 disabled:bg-gray-500 disabled:cursor-not-allowed"
+                        disabled={!rewardInfo || rewardInfo.type !== 'available'}
+                      >
+                        Resgatar Pontos
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
-            )) : (
+            ) : (
               <p className="text-center py-8 text-gray-400">Nenhum cliente encontrado.</p>
             )}
           </div>
@@ -1716,7 +1764,7 @@ const LoyaltyTab: React.FC<{ barberId: string }> = ({ barberId }) => {
             
             <div className="space-y-4">
               {rewards.map(reward => (
-                <div key={reward.points} className="bg-gray-700 p-4 rounded-lg flex justify-between items-center">
+                <div key={reward.points} className={`p-4 rounded-lg flex justify-between items-center ${selectedClient.points >= reward.points ? 'bg-gray-700' : 'bg-gray-700 opacity-50'}`}>
                   <div>
                     <p className="font-semibold">{reward.description}</p>
                     <p className="text-sm text-yellow-400">{reward.points} pontos</p>

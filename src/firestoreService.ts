@@ -661,10 +661,14 @@ export class FirestoreService {
     try {
       const snapshot = await db.collection('loyaltyClients')
         .where('barberId', '==', barberId)
-        .orderBy('points', 'desc')
         .get();
       
-      return snapshot.docs.map(doc => doc.data() as LoyaltyClient);
+      const clients = snapshot.docs.map(doc => doc.data() as LoyaltyClient);
+      
+      // Ordenar no lado do cliente para evitar a necessidade de um índice composto
+      clients.sort((a, b) => (b.points || 0) - (a.points || 0));
+
+      return clients;
     } catch (error) {
       console.error('❌ Erro ao buscar clientes de fidelidade:', error);
       return [];
