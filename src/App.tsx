@@ -330,7 +330,7 @@ const Icon = ({ path, className = "h-5 w-5" }: { path: string, className?: strin
   </svg>
 );
 
-const CalendarIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M16 2h-1V1h-2v1H7V1H5v1H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H4V7h12v9z" />;
+const CalendarIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M96 160C96 124.7 124.7 96 160 96L480 96C515.3 96 544 124.7 544 160L544 480C544 515.3 515.3 544 480 544L160 544C124.7 544 96 515.3 96 480L96 160zM160 224L160 480L288 480L288 224L160 224zM480 224L352 224L352 480L480 480L480 224z" />;
 const ClockIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.414-1.415L11 9.586V6z" />;
 const ScissorsIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M7.22 9.22L9 11v.5a1.5 1.5 0 103 0V11l1.78-1.78L17 12.44V14a2 2 0 01-2 2h-1.75l-2.75 2.75L7.75 16H6a2 2 0 01-2-2v-1.56l3.22-3.22zM10.5 8A1.5 1.5 0 109 9.5a1.5 1.5 0 001.5-1.5zm4.25-4H13.25L10.5 6.75 7.75 4H6a2 2 0 00-2 2v1.56l3.22 3.22L10.5 7.5l3.28 3.28L17 7.56V6a2 2 0 00-2-2z" />;
 const CreditCardIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V8a2 2 0 00-2-2h-5L9 4H4zm2 2h2v2H6V6zm4 0h2v2h-2V6zM6 9h2v2H6V9zm4 0h2v2h-2V9z" />;
