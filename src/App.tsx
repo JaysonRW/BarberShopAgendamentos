@@ -1,4 +1,5 @@
 
+
 import React, { useState, useCallback, useMemo, ChangeEvent, useEffect, useRef } from 'react';
 import type { Promotion, GalleryImage, Service, Appointment, LoyaltyClient } from './types';
 import { FirestoreService, BarberData } from './firestoreService';
@@ -329,9 +330,9 @@ const Icon = ({ path, className = "h-5 w-5" }: { path: string, className?: strin
   </svg>
 );
 
-const CalendarIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" />;
+const CalendarIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M16 2h-1V1h-2v1H7V1H5v1H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H4V7h12v9z" />;
 const ClockIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.414-1.415L11 9.586V6z" />;
-const ScissorsIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M14.293 5.293a1 1 0 011.414 1.414l-10 10a1 1 0 01-1.414-1.414l10-10zM5.707 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 1.414L7.121 6.707a1 1 0 01-1.414 0zM9 12a1 1 0 10-2 0 1 1 0 002 0zm-1-5.414l-3-3a1 1 0 10-1.414 1.414L6.586 8H5a1 1 0 000 2h2.586l4 4H10a1 1 0 100 2h1a1 1 0 001-1v-1.586l-4-4V9a1 1 0 00-1-1z" />;
+const ScissorsIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M7.22 9.22L9 11v.5a1.5 1.5 0 103 0V11l1.78-1.78L17 12.44V14a2 2 0 01-2 2h-1.75l-2.75 2.75L7.75 16H6a2 2 0 01-2-2v-1.56l3.22-3.22zM10.5 8A1.5 1.5 0 109 9.5a1.5 1.5 0 001.5-1.5zm4.25-4H13.25L10.5 6.75 7.75 4H6a2 2 0 00-2 2v1.56l3.22 3.22L10.5 7.5l3.28 3.28L17 7.56V6a2 2 0 00-2-2z" />;
 const CreditCardIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V8a2 2 0 00-2-2h-5L9 4H4zm2 2h2v2H6V6zm4 0h2v2h-2V6zM6 9h2v2H6V9zm4 0h2v2h-2V9z" />;
 const MapPinIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M5.05 4.05a7 7 0 119.9 9.9L10 20l-4.95-5.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" />;
 const ChevronLeftIcon = ({ className = "h-6 w-6" }) => <Icon className={className} path="M15 19l-7-7 7-7" />;
@@ -345,11 +346,11 @@ const WhatsAppIcon = ({className = "h-5 w-5 mr-2"}) => <svg xmlns="http://www.w3
 const LogoutIcon = ({className = "h-5 w-5 mr-2"}) => <Icon className={className} path="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" />;
 const UserIcon = ({className = "h-6 w-6"}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>;
 
-// Ícones do Painel Admin
-const DashboardIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M9 2a1 1 0 00-1 1v1a1 1 0 001 1h1a1 1 0 100-2H9zM3 7a1 1 0 011-1h1a1 1 0 110 2H4a1 1 0 01-1-1zM7 11a1 1 0 100 2h1a1 1 0 100-2H7zM3 13a1 1 0 011-1h1a1 1 0 110 2H4a1 1 0 01-1-1zm12-4a1 1 0 100 2h1a1 1 0 100-2h-1zM9 15a1 1 0 100 2h1a1 1 0 100-2H9zm6-4a1 1 0 100 2h1a1 1 0 100-2h-1zM6 2a1 1 0 00-1 1v1a1 1 0 102 0V3a1 1 0 00-1-1zm11 11a1 1 0 100 2h1a1 1 0 100-2h-1z" />;
-const ShopIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M4 4h16v12H4V4zm8 9a3 3 0 100-6 3 3 0 000 6z" />;
-const TagIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M9 2a1 1 0 000 2h2a1 1 0 100-2H9zM3 5a2 2 0 012-2h4a2 2 0 012 2v2a2 2 0 01-2 2H5a2 2 0 01-2-2V5zm1.5 0a1.5 1.5 0 10-3 0 1.5 1.5 0 003 0z" />;
-const GalleryIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M3 3a1 1 0 00-1 1v12a1 1 0 001 1h12a1 1 0 001-1V4a1 1 0 00-1-1H3zm1 2h10v8H4V5zm2 2a1 1 0 100 2h6a1 1 0 100-2H6z" />;
+// Ícones do Painel Admin (NOVOS)
+const DashboardIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M3 11h6V3H3v8zm0 6h6v-6H3v6zm8-14v6h6V3h-6zm0 8h6v6h-6v-6z" />;
+const ShopIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M16 5H4v2H2v10h16V7h-2V5zM8 4h4v1H8V4zM4 17V9h12v8H4z" />;
+const TagIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M15.41 2.59c-.78-.78-2.05-.78-2.83 0L3 12.17V17h4.83l9.58-9.58c.78-.78.78-2.05 0-2.83L15.41 2.59zM6.5 14C5.67 14 5 13.33 5 12.5S5.67 11 6.5 11 8 11.67 8 12.5 7.33 14 6.5 14z" />;
+const GalleryIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M19 3H5c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-4.85 9.15l-2.15-2.15-4.15 4.15H5v-2.7L8.85 9.3l3.3 3.3L14.3 10.45l2.85 2.85V15h-2.15z" />;
 const ShareIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" />;
 const LinkIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M10 3a1 1 0 01.707.293l3 3a1 1 0 01-1.414 1.414L10 5.414 7.707 7.707a1 1 0 01-1.414-1.414l3-3A1 1 0 0110 3zm-3.707 9.293a1 1 0 011.414 0L10 14.586l2.293-2.293a1 1 0 011.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" />;
 
