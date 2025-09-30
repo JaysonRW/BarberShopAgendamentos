@@ -52,6 +52,29 @@ const useRouting = () => {
   return currentRoute;
 };
 
+// Helper function to calculate financial summary from appointments
+const calculateFinancials = (appointments: (Appointment & { servicePrice?: number })[]) => {
+  let confirmedTotal = 0;
+  let pendingTotal = 0;
+
+  appointments.forEach(appt => {
+    // Use servicePrice if available (for historical accuracy), fallback to service.price
+    const price = appt.servicePrice ?? appt.service?.price ?? 0;
+    
+    if (appt.status === 'Confirmado') {
+      confirmedTotal += price;
+    } else if (appt.status === 'Pendente') {
+      pendingTotal += price;
+    }
+  });
+
+  return {
+    confirmedTotal,
+    pendingTotal,
+    totalRevenue: confirmedTotal + pendingTotal
+  };
+};
+
 
 // === COMPONENTE APP PRINCIPAL REATORADO ===
 const App: React.FC = () => {
@@ -1024,13 +1047,21 @@ const AdminPanel: React.FC<{
   onLogout: () => void;
   onDataUpdate: () => void;
 }> = ({ barberData, onLogout, onDataUpdate }) => {
-  const [activeTab, setActiveTab] = useState<'profile' | 'dashboard' | 'services' | 'promotions' | 'gallery' | 'appointments' | 'loyalty'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'dashboard' | 'services' | 'promotions' | 'gallery' | 'appointments' | 'loyalty'>('dashboard');
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<any>({});
   
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | undefined>(undefined);
+
+  // Calculate financial summary
+  const financialSummary = useMemo(() => {
+    if (!barberData) {
+      return { confirmedTotal: 0, pendingTotal: 0, totalRevenue: 0 };
+    }
+    return calculateFinancials(barberData.appointments);
+  }, [barberData]);
 
 
   const handleEdit = (section: string, data: any) => {
@@ -1177,7 +1208,10 @@ const AdminPanel: React.FC<{
           {/* Main Content */}
           <div className="flex-1">
             {activeTab === 'dashboard' && (
-              <DashboardTab barberData={barberData} />
+              <DashboardTab 
+                barberData={barberData} 
+                financialSummary={financialSummary}
+              />
             )}
             
             {activeTab === 'profile' && (
@@ -1265,7 +1299,10 @@ const AdminPanel: React.FC<{
 // Componentes das Abas do Painel Administrativo
 
 // Dashboard Tab
-const DashboardTab: React.FC<{ barberData: BarberData }> = ({ barberData }) => (
+const DashboardTab: React.FC<{ 
+  barberData: BarberData;
+  financialSummary: { confirmedTotal: number; pendingTotal: number; totalRevenue: number };
+}> = ({ barberData, financialSummary }) => (
   <div className="space-y-6">
     <h2 className="text-3xl font-bold">Dashboard</h2>
     
@@ -1284,6 +1321,24 @@ const DashboardTab: React.FC<{ barberData: BarberData }> = ({ barberData }) => (
       <div className="bg-gray-800 rounded-lg p-6">
         <h3 className="text-lg font-semibold text-gray-300">Promoções Ativas</h3>
         <p className="text-3xl font-bold text-white">{barberData.promotions.length}</p>
+      </div>
+    </div>
+    
+    {/* Novos Cards Financeiros */}
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="bg-gray-800 rounded-lg p-6">
+        <h3 className="text-lg font-semibold text-gray-300">Receita Confirmada</h3>
+        <p className="text-3xl font-bold text-green-500">R$ {financialSummary.confirmedTotal.toFixed(2)}</p>
+      </div>
+      
+      <div className="bg-gray-800 rounded-lg p-6">
+        <h3 className="text-lg font-semibold text-gray-300">A Confirmar (Previsão)</h3>
+        <p className="text-3xl font-bold text-yellow-500">R$ {financialSummary.pendingTotal.toFixed(2)}</p>
+      </div>
+      
+      <div className="bg-gray-800 rounded-lg p-6">
+        <h3 className="text-lg font-semibold text-gray-300">Receita Total (Previsão)</h3>
+        <p className="text-3xl font-bold text-white">R$ {financialSummary.totalRevenue.toFixed(2)}</p>
       </div>
     </div>
 
