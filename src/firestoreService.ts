@@ -23,40 +23,59 @@ export interface BarberData {
 // Classe para gerenciar todas as operações do Firestore
 export class FirestoreService {
   
-  // UPLOAD DE IMAGEM
-  static uploadImage(file: File, folder: 'logos' | 'gallery', onProgress: (progress: number) => void): Promise<string> {
-    const barberId = auth.currentUser?.uid;
-    if (!barberId) {
-      return Promise.reject(new Error("Usuário não autenticado para fazer upload."));
-    }
-    
-    return new Promise((resolve, reject) => {
-      const fileName = `${folder}/${Date.now()}_${file.name}`;
-      const storageRef = storage.ref();
-      const fileRef = storageRef.child(`barbers/${barberId}/${fileName}`);
-      
-      console.log(`🚀 Fazendo upload do arquivo: ${fileName}`);
-      const uploadTask = fileRef.put(file);
-
-      uploadTask.on('state_changed', 
-        (snapshot) => {
-          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          console.log('Upload is ' + progress + '% done');
-          onProgress(progress);
-        }, 
-        (error) => {
-          console.error('❌ Erro no upload da imagem:', error);
-          reject(error);
-        }, 
-        () => {
-          uploadTask.snapshot.ref.getDownloadURL().then((downloadURL) => {
-            console.log('✅ Arquivo enviado com sucesso! URL:', downloadURL);
-            resolve(downloadURL);
-          }).catch(reject);
-        }
-      );
-    });
+  // Substitua a função uploadImage por esta:
+static uploadImage(
+  file: File, 
+  folder: 'logos' | 'gallery', 
+  onProgress: (progress: number) => void
+): Promise<string> {
+  const barberId = auth.currentUser?.uid;
+  if (!barberId) {
+    return Promise.reject(new Error("Usuário não autenticado para fazer upload."));
   }
+  
+  return new Promise((resolve, reject) => {
+    // Limpar nome do arquivo
+    const sanitizedFileName = file.name
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9.-]/g, '_')
+      .replace(/_+/g, '_')
+      .toLowerCase();
+    
+    const timestamp = Date.now();
+    const fileName = `${timestamp}_${sanitizedFileName}`;
+    const fullPath = `barbers/${barberId}/${folder}/${fileName}`;
+    
+    console.log(`🚀 Iniciando upload: ${fullPath}`);
+    
+    // Usar o storage corretamente
+    const storageRef = storage.ref(fullPath);
+    const uploadTask = storageRef.put(file);
+
+    uploadTask.on(
+      firebase.storage.TaskEvent.STATE_CHANGED,
+      (snapshot) => {
+        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+        console.log(`Upload: ${progress.toFixed(0)}% concluído`);
+        onProgress(progress);
+      }, 
+      (error) => {
+        console.error('❌ Erro no upload:', error);
+        reject(error);
+      }, 
+      async () => {
+        try {
+          const downloadURL = await storageRef.getDownloadURL();
+          console.log('✅ Upload concluído! URL:', downloadURL);
+          resolve(downloadURL);
+        } catch (error) {
+          reject(error);
+        }
+      }
+    );
+  });
+}
 
   // DELETAR IMAGEM DO STORAGE
   static async deleteImageFromStorage(imageUrl: string): Promise<boolean> {
