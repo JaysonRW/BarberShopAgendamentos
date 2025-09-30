@@ -346,14 +346,14 @@ const WhatsAppIcon = ({className = "h-5 w-5 mr-2"}) => <svg xmlns="http://www.w3
 const LogoutIcon = ({className = "h-5 w-5 mr-2"}) => <Icon className={className} path="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" />;
 const UserIcon = ({className = "h-6 w-6"}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>;
 
-// Ícones do Painel Admin (NOVOS)
-const DashboardIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M3 11h6V3H3v8zm0 6h6v-6H3v6zm8-14v6h6V3h-6zm0 8h6v6h-6v-6z" />;
-const ShopIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M16 5H4v2H2v10h16V7h-2V5zM8 4h4v1H8V4zM4 17V9h12v8H4z" />;
-const TagIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M15.41 2.59c-.78-.78-2.05-.78-2.83 0L3 12.17V17h4.83l9.58-9.58c.78-.78.78-2.05 0-2.83L15.41 2.59zM6.5 14C5.67 14 5 13.33 5 12.5S5.67 11 6.5 11 8 11.67 8 12.5 7.33 14 6.5 14z" />;
-const GalleryIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M19 3H5c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-4.85 9.15l-2.15-2.15-4.15 4.15H5v-2.7L8.85 9.3l3.3 3.3L14.3 10.45l2.85 2.85V15h-2.15z" />;
-const ShareIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" />;
-const LinkIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M10 3a1 1 0 01.707.293l3 3a1 1 0 01-1.414 1.414L10 5.414 7.707 7.707a1 1 0 01-1.414-1.414l3-3A1 1 0 0110 3zm-3.707 9.293a1 1 0 011.414 0L10 14.586l2.293-2.293a1 1 0 011.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" />;
-
+// Ícones do Painel Admin - Tema Barbearia Moderna
+const DashboardIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />;
+const ShopIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73v3.72z" />;
+const ScissorsIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M9.64 7.64c.23-.5.36-1.05.36-1.64 0-2.21-1.79-4-4-4S2 3.79 2 6s1.79 4 4 4c.59 0 1.14-.13 1.64-.36L10 12l-2.36 2.36C7.14 14.13 6.59 14 6 14c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4c0-.59-.13-1.14-.36-1.64L12 14l7 7h3v-1L9.64 7.64zM6 8c-1.1 0-2-.89-2-2s.9-2 2-2 2 .89 2 2-.9 2-2 2zm0 12c-1.1 0-2-.89-2-2s.9-2 2-2 2 .89 2 2-.9 2-2 2zm6-7.5c-.28 0-.5-.22-.5-.5s.22-.5.5-.5.5.22.5.5-.22.5-.5.5zM19 3l-6 6 2 2 7-7V3z" />;
+const TagIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z" />;
+const GalleryIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M22 16V4c0-1.1-.9-2-2-2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2zm-11-4l2.03 2.71L16 11l4 5H8l3-4zM2 6v14c0 1.1.9 2 2 2h14v-2H4V6H2z" />;
+const CalendarIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zM9 14H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2zm-8 4H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2z" />;
+const StarIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />;
 
 // === COMPONENTES ===
 
