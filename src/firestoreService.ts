@@ -1,6 +1,6 @@
 import { db, storage, auth } from './firebaseConfig';
 import type { Promotion, GalleryImage, Service, Appointment, LoyaltyClient } from './types';
-import firebase from 'firebase/compat/app';
+
 // Interface para dados completos do barbeiro
 export interface BarberData {
   id: string;
@@ -23,8 +23,7 @@ export interface BarberData {
 // Classe para gerenciar todas as operações do Firestore
 export class FirestoreService {
   
-  // Substitua a função uploadImage por esta:
-static uploadImage(
+ static uploadImage(
   file: File, 
   folder: 'logos' | 'gallery', 
   onProgress: (progress: number) => void
@@ -49,12 +48,11 @@ static uploadImage(
     
     console.log(`🚀 Iniciando upload: ${fullPath}`);
     
-    // Usar o storage corretamente
     const storageRef = storage.ref(fullPath);
     const uploadTask = storageRef.put(file);
 
     uploadTask.on(
-      firebase.storage.TaskEvent.STATE_CHANGED,
+      'state_changed', // ← Mudei aqui, string direta em vez de firebase.storage.TaskEvent.STATE_CHANGED
       (snapshot) => {
         const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
         console.log(`Upload: ${progress.toFixed(0)}% concluído`);
