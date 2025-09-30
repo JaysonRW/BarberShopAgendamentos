@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useMemo, ChangeEvent, useEffect, useRef } from 'react';
 import type { Promotion, GalleryImage, Service, Appointment, LoyaltyClient } from './types';
 import { FirestoreService, BarberData } from './firestoreService';
@@ -1423,6 +1424,7 @@ const ProfileTab: React.FC<{
                 onChange={(e) => onEditDataChange({...editData, whatsappNumber: e.target.value})}
                 className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
               />
+              <p className="text-xs text-gray-400 mt-1">Preencha somente com números.</p>
             </div>
             
             <div>
