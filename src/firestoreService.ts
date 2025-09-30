@@ -1,6 +1,6 @@
 import { db, storage, auth } from './firebaseConfig';
 import type { Promotion, GalleryImage, Service, Appointment, LoyaltyClient } from './types';
-
+import firebase from 'firebase/compat/app';
 // Interface para dados completos do barbeiro
 export interface BarberData {
   id: string;
