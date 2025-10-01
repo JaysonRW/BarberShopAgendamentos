@@ -33,7 +33,9 @@ export interface LoyaltyClient {
   id: string;
   barberId: string;
   clientWhatsapp: string;
-  points: number;
+  points: number; // Manter para possível uso futuro
+  stars?: number; // Sistema de estrelas/selos
+  goal?: number; // Meta de estrelas para recompensa
   lifetimeAppointments: number;
   clientName: string;
   createdAt?: any;

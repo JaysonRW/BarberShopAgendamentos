@@ -2014,34 +2014,42 @@ const AppointmentsTab: React.FC<{
                       {appointment.status === 'Pendente' && (
                         <button onClick={async () => {
                           const success = await FirestoreService.updateAppointmentStatus(barberId, appointment.id, 'Confirmado');
-                          if (success) {
-                            const loyaltyData = await FirestoreService.awardLoyaltyPoints(
-                              barberId,
-                              appointment.clientWhatsapp,
-                              appointment.clientName,
-                              appointment.service?.price || 0
-                            );
-
-                            const clientWhatsapp = appointment.clientWhatsapp.replace(/\D/g, '');
-                            const serviceName = appointment.service?.name || 'seu serviço';
-                            const formattedDate = new Date(appointment.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
-                            const time = appointment.time;
-                            const shopName = barberData.profile.shopName;
-                            
-                            const pointsAwarded = Math.floor((appointment.service?.price || 0) / 10);
-                            const pointsMessage = loyaltyData && pointsAwarded > 0
-                              ? `\n\nVocê ganhou ${pointsAwarded} pontos! Seu saldo agora é de *${loyaltyData.points}* pontos. ✨`
-                              : `\n\nSeu saldo de pontos é *${loyaltyData?.points || 0}*.`;
-
-                            const message = `Olá, ${appointment.clientName}! 😊\n\nSeu agendamento na *${shopName}* foi CONFIRMADO com sucesso.\n\n*Serviço:* ${serviceName}\n*Data:* ${formattedDate}\n*Hora:* ${time}${pointsMessage}\n\nAté breve!`;
-                            const whatsappUrl = `https://wa.me/${clientWhatsapp}?text=${encodeURIComponent(message)}`;
-                            
-                            window.open(whatsappUrl, '_blank');
-
-                            alert('Agendamento confirmado! Uma aba do WhatsApp com a mensagem de confirmação e fidelidade foi aberta.');
-                            onDataUpdate();
+                           if (success) {
+                              // CHAMA A FUNÇÃO DE FIDELIDADE
+                              const loyaltyResult = await FirestoreService.addStar(
+                                  barberId,
+                                  appointment.clientWhatsapp,
+                                  appointment.clientName,
+                              );
+                              
+                              const clientWhatsapp = appointment.clientWhatsapp.replace(/\D/g, '');
+                              const serviceName = appointment.service?.name || 'seu serviço';
+                              const formattedDate = new Date(appointment.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+                              const time = appointment.time;
+                              const shopName = barberData.profile.shopName;
+                              
+                              let loyaltyMessage = '';
+                              let alertMessage = 'Agendamento confirmado!';
+                      
+                              if (loyaltyResult) {
+                                  const { newStars, goal } = loyaltyResult;
+                                  if (newStars >= goal) {
+                                      loyaltyMessage = `\n\n🎉 PARABÉNS! Você completou seu cartão fidelidade com *${newStars} estrelas* e ganhou um prêmio! Entre em contato para resgatar.`;
+                                      alertMessage = `Agendamento confirmado! 🎉 Cliente ${appointment.clientName} completou o cartão fidelidade!`;
+                                  } else {
+                                      loyaltyMessage = `\n\nVocê ganhou +1 estrela! 🌟 Agora você tem *${newStars} de ${goal}*. Continue assim!`;
+                                      alertMessage = `Agendamento confirmado e +1 estrela adicionada para ${appointment.clientName}.`;
+                                  }
+                              }
+                              
+                              const message = `Olá, ${appointment.clientName}! 😊\n\nSeu agendamento na *${shopName}* foi CONFIRMADO com sucesso.\n\n*Serviço:* ${serviceName}\n*Data:* ${formattedDate}\n*Hora:* ${time}${loyaltyMessage}\n\nAté breve!`;
+                              const whatsappUrl = `https://wa.me/${clientWhatsapp}?text=${encodeURIComponent(message)}`;
+                              
+                              window.open(whatsappUrl, '_blank');
+                              alert(alertMessage);
+                              onDataUpdate();
                           } else {
-                            alert('Erro ao confirmar agendamento.');
+                              alert('Erro ao confirmar agendamento.');
                           }
                         }} className="w-full bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-green-700 transition-colors">Confirmar</button>
                       )}
@@ -2124,9 +2132,8 @@ const LoyaltyTab: React.FC<{ barberId: string }> = ({ barberId }) => {
   const [isRedeemModalOpen, setIsRedeemModalOpen] = useState(false);
 
   const rewards = useMemo(() => [
-    { points: 50, description: 'R$ 20 de desconto' },
-    { points: 100, description: 'Corte Grátis' },
-  ].sort((a, b) => a.points - b.points), []);
+    { stars: 5, description: 'Prêmio (Ex: Corte Grátis)' },
+  ], []);
   
   const fetchClients = useCallback(async () => {
     setIsLoading(true);
@@ -2144,37 +2151,25 @@ const LoyaltyTab: React.FC<{ barberId: string }> = ({ barberId }) => {
     client.clientWhatsapp.includes(searchTerm)
   ), [clients, searchTerm]);
 
-  const handleRedeem = async (pointsToRedeem: number) => {
-    if (!selectedClient) return;
+  const handleRedeem = async (client: LoyaltyClient) => {
+    if (!client || !client.goal) return;
 
-    const success = await FirestoreService.redeemLoyaltyPoints(
+    const success = await FirestoreService.redeemStars(
       barberId,
-      selectedClient.clientWhatsapp,
-      pointsToRedeem
+      client.clientWhatsapp,
+      client.goal
     );
 
     if (success) {
-      alert(`✅ ${pointsToRedeem} pontos resgatados com sucesso!`);
+      alert(`✅ Prêmio resgatado com sucesso para ${client.clientName}! O saldo de estrelas foi atualizado.`);
       setIsRedeemModalOpen(false);
       fetchClients(); // Refresh client list
     }
   };
-
-  const getNextReward = (currentPoints: number) => {
-    const available = rewards.filter(r => r.points <= currentPoints);
-    if (available.length > 0) {
-      return { type: 'available', reward: available[available.length - 1] };
-    }
-    const next = rewards.find(r => r.points > currentPoints);
-    if (next) {
-      return { type: 'next', reward: next, pointsNeeded: next.points - currentPoints };
-    }
-    return null;
-  };
   
   return (
     <div className="space-y-6">
-      <h2 className="text-3xl font-bold">Programa de Fidelidade</h2>
+      <h2 className="text-3xl font-bold">Programa de Fidelidade (Selos)</h2>
 
       <div className="bg-gray-800 rounded-lg p-6">
         <input
@@ -2192,7 +2187,9 @@ const LoyaltyTab: React.FC<{ barberId: string }> = ({ barberId }) => {
             {filteredClients.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredClients.map(client => {
-                  const rewardInfo = getNextReward(client.points);
+                  const clientGoal = client.goal || 5;
+                  const clientStars = client.stars || 0;
+                  const canRedeem = clientStars >= clientGoal;
                   return (
                     <div key={client.id} className="bg-gray-700 p-6 rounded-lg flex flex-col justify-between shadow-lg">
                       <div>
@@ -2207,28 +2204,27 @@ const LoyaltyTab: React.FC<{ barberId: string }> = ({ barberId }) => {
                         </div>
                         
                         <div className="text-center my-4">
-                          <p className="text-5xl font-bold text-yellow-400 flex items-center justify-center gap-2">
-                            <StarIcon className="h-8 w-8" /> {client.points}
-                          </p>
-                          <p className="text-sm text-gray-400">Pontos</p>
+                          <p className="text-sm text-gray-400 mb-2">Cartão Fidelidade</p>
+                          <div className="flex items-center justify-center gap-2">
+                              {[...Array(clientGoal)].map((_, i) => (
+                              <StarIcon key={i} className={`h-8 w-8 transition-colors ${i < clientStars ? 'text-yellow-400' : 'text-gray-600'}`} />
+                              ))}
+                          </div>
+                          <p className="text-lg font-bold text-white mt-2">{clientStars} / {clientGoal}</p>
                         </div>
 
                         <div className="bg-gray-800 p-3 rounded-md text-center h-20 flex flex-col justify-center">
-                          {rewardInfo?.type === 'available' && (
+                           {canRedeem ? (
                             <>
                               <p className="text-sm font-semibold text-green-400">Recompensa Disponível!</p>
-                              <p className="text-xs text-gray-300">{rewardInfo.reward.description}</p>
+                              <p className="text-xs text-gray-300">O cliente pode resgatar o prêmio.</p>
                             </>
-                          )}
-                          {rewardInfo?.type === 'next' && (
+                          ) : (
                             <>
                               <p className="text-sm font-semibold text-gray-300">Próxima Recompensa</p>
-                              <p className="text-xs text-gray-400">Faltam {rewardInfo.pointsNeeded} pontos para "{rewardInfo.reward.description}"</p>
+                              <p className="text-xs text-gray-400">Faltam {clientGoal - clientStars} estrelas</p>
                             </>
                           )}
-                           {!rewardInfo && (
-                             <p className="text-sm text-gray-400">Parabéns! Todas as recompensas disponíveis foram resgatadas.</p>
-                           )}
                         </div>
                       </div>
 
@@ -2238,9 +2234,9 @@ const LoyaltyTab: React.FC<{ barberId: string }> = ({ barberId }) => {
                           setIsRedeemModalOpen(true);
                         }}
                         className="mt-6 w-full bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition duration-300 disabled:bg-gray-500 disabled:cursor-not-allowed"
-                        disabled={!rewardInfo || rewardInfo.type !== 'available'}
+                        disabled={!canRedeem}
                       >
-                        Resgatar Pontos
+                        Resgatar Prêmio
                       </button>
                     </div>
                   );
@@ -2256,20 +2252,20 @@ const LoyaltyTab: React.FC<{ barberId: string }> = ({ barberId }) => {
       {isRedeemModalOpen && selectedClient && (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
           <div className="bg-gray-800 p-8 rounded-xl shadow-2xl text-white w-full max-w-md m-4">
-            <h3 className="text-2xl font-bold text-center mb-2">Resgatar Pontos</h3>
+            <h3 className="text-2xl font-bold text-center mb-2">Resgatar Prêmio</h3>
             <p className="text-center text-gray-300 mb-1">Cliente: {selectedClient.clientName}</p>
-            <p className="text-center text-lg font-bold text-yellow-400 mb-6">Saldo: {selectedClient.points} pontos</p>
+            <p className="text-center text-lg font-bold text-yellow-400 mb-6">Saldo: {selectedClient.stars || 0} estrelas</p>
             
             <div className="space-y-4">
               {rewards.map(reward => (
-                <div key={reward.points} className={`p-4 rounded-lg flex justify-between items-center ${selectedClient.points >= reward.points ? 'bg-gray-700' : 'bg-gray-700 opacity-50'}`}>
+                <div key={reward.stars} className={`p-4 rounded-lg flex justify-between items-center ${(selectedClient.stars || 0) >= (selectedClient.goal || 5) ? 'bg-gray-700' : 'bg-gray-700 opacity-50'}`}>
                   <div>
                     <p className="font-semibold">{reward.description}</p>
-                    <p className="text-sm text-yellow-400">{reward.points} pontos</p>
+                    <p className="text-sm text-yellow-400">{selectedClient.goal || 5} estrelas</p>
                   </div>
                   <button
-                    onClick={() => handleRedeem(reward.points)}
-                    disabled={selectedClient.points < reward.points}
+                    onClick={() => handleRedeem(selectedClient)}
+                    disabled={(selectedClient.stars || 0) < (selectedClient.goal || 5)}
                     className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:bg-gray-500 disabled:cursor-not-allowed"
                   >
                     Resgatar

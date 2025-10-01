@@ -555,7 +555,7 @@ export class FirestoreService {
       if (!barbersSnapshot.empty) {
         const barberDoc = barbersSnapshot.docs[0];
 
-        // Verificar manualmente se o perfil está ativo após a busca
+        // Verificar manually se o perfil está ativo após a busca
         if (barberDoc.data()?.profile?.isActive) {
           const barberId = barberDoc.id;
           console.log(`✅ Barbeiro encontrado diretamente na coleção barbers com ID: ${barberId}`);
@@ -697,51 +697,57 @@ export class FirestoreService {
     }
   }
 
-  // FIDELIDADE
-  static async awardLoyaltyPoints(barberId: string, clientWhatsapp: string, clientName: string, amountSpent: number): Promise<LoyaltyClient | null> {
-    const pointsToAdd = Math.floor(amountSpent / 10); // Regra: 1 ponto a cada R$10
-    if (pointsToAdd <= 0) {
-      // Se não houver pontos a adicionar, ainda retorna o cliente existente para mostrar o saldo
-      return this.getLoyaltyClient(barberId, clientWhatsapp);
-    }
-
+  // FIDELIDADE - NOVO SISTEMA DE ESTRELAS
+  static async addStar(barberId: string, clientWhatsapp: string, clientName: string): Promise<{newStars: number, goal: number} | null> {
+    const GOAL = 5; // Configuração padrão, pode ser dinâmico
     const normalizedWhatsapp = clientWhatsapp.replace(/\D/g, '');
+    if (!normalizedWhatsapp) {
+        console.error("WhatsApp inválido fornecido:", clientWhatsapp);
+        return null;
+    }
     const docId = `${barberId}_${normalizedWhatsapp}`;
     const clientRef = db.collection('loyaltyClients').doc(docId);
 
     try {
-      await db.runTransaction(async (transaction) => {
-        const clientDoc = await transaction.get(clientRef);
+      const result = await db.runTransaction(async (transaction) => {
+          const clientDoc = await transaction.get(clientRef);
+          const data = clientDoc.data() as LoyaltyClient | undefined;
+          
+          const currentStars = data?.stars || 0;
+          const currentGoal = data?.goal || GOAL;
+          
+          if (currentStars >= currentGoal) {
+              // Se já atingiu a meta, não adiciona e retorna o saldo
+              return { newStars: currentStars, goal: currentGoal }; 
+          }
 
-        if (clientDoc.exists) {
-            const data = clientDoc.data() as LoyaltyClient;
-            const currentPoints = data.points || 0;
-            const currentAppointments = data.lifetimeAppointments || 0;
-            
-            transaction.update(clientRef, {
-                points: currentPoints + pointsToAdd,
-                lifetimeAppointments: currentAppointments + 1,
-                clientName: clientName, // Atualiza o nome mais recente
-                updatedAt: new Date()
-            });
-        } else {
-            transaction.set(clientRef, {
-                id: docId,
-                barberId: barberId,
-                clientWhatsapp: normalizedWhatsapp,
-                clientName: clientName,
-                points: pointsToAdd,
-                lifetimeAppointments: 1,
-                createdAt: new Date(),
-                updatedAt: new Date()
-            });
-        }
+          const newStars = currentStars + 1;
+          
+          const clientData: Partial<LoyaltyClient> = {
+              barberId: barberId,
+              clientWhatsapp: normalizedWhatsapp,
+              clientName: clientName, // Sempre atualiza com o nome mais recente
+              stars: newStars,
+              goal: currentGoal,
+              lifetimeAppointments: (data?.lifetimeAppointments || 0) + 1,
+              updatedAt: new Date(),
+          };
+
+          if (!clientDoc.exists) {
+            clientData.id = docId;
+            clientData.createdAt = new Date();
+            clientData.points = 0; // initialize old field
+          }
+          
+          transaction.set(clientRef, clientData, { merge: true });
+
+          return { newStars, goal: currentGoal };
       });
-      console.log(`✅ ${pointsToAdd} pontos concedidos a ${clientName}.`);
-      return this.getLoyaltyClient(barberId, normalizedWhatsapp);
+      console.log(`⭐ Estrela adicionada para ${clientName}. Novo total: ${result.newStars}`);
+      return result;
     } catch (error) {
-      console.error('❌ Erro ao conceder pontos de fidelidade:', error);
-      return null;
+        console.error('❌ Erro ao adicionar estrela:', error);
+        return null;
     }
   }
 
@@ -764,7 +770,7 @@ export class FirestoreService {
       const clients = snapshot.docs.map(doc => doc.data() as LoyaltyClient);
       
       // Ordenar no lado do cliente para evitar a necessidade de um índice composto
-      clients.sort((a, b) => (b.points || 0) - (a.points || 0));
+      clients.sort((a, b) => (b.stars || 0) - (a.stars || 0));
 
       return clients;
     } catch (error) {
@@ -773,7 +779,7 @@ export class FirestoreService {
     }
   }
 
-  static async redeemLoyaltyPoints(barberId: string, clientWhatsapp: string, pointsToRedeem: number): Promise<boolean> {
+  static async redeemStars(barberId: string, clientWhatsapp: string, goal: number): Promise<boolean> {
     const normalizedWhatsapp = clientWhatsapp.replace(/\D/g, '');
     const docId = `${barberId}_${normalizedWhatsapp}`;
     const clientRef = db.collection('loyaltyClients').doc(docId);
@@ -786,20 +792,20 @@ export class FirestoreService {
           throw new Error("Cliente não encontrado no programa de fidelidade.");
         }
 
-        const currentPoints = clientDoc.data()?.points || 0;
-        if (currentPoints < pointsToRedeem) {
-          throw new Error("Pontos insuficientes para resgate.");
+        const currentStars = clientDoc.data()?.stars || 0;
+        if (currentStars < goal) {
+          throw new Error("Estrelas insuficientes para resgate.");
         }
 
         transaction.update(clientRef, {
-          points: currentPoints - pointsToRedeem,
+          stars: currentStars - goal,
           updatedAt: new Date()
         });
       });
-      console.log(`✅ ${pointsToRedeem} pontos resgatados para ${normalizedWhatsapp}.`);
+      console.log(`✅ ${goal} estrelas resgatadas para ${normalizedWhatsapp}.`);
       return true;
     } catch (error) {
-      console.error('❌ Erro ao resgatar pontos:', error);
+      console.error('❌ Erro ao resgatar estrelas:', error);
       alert(error instanceof Error ? error.message : 'Erro desconhecido');
       return false;
     }

@@ -16,7 +16,8 @@ export default defineConfig(({ mode }) => {
       },
       resolve: {
         alias: {
-          '@': path.resolve(__dirname, '.'),
+          // FIX: Replaced `__dirname` with `process.cwd()` to resolve the "Cannot find name '__dirname'" error. This is necessary because `__dirname` is not available in ES modules, which Vite uses.
+          '@': path.resolve(process.cwd(), '.'),
         }
       }
     };
