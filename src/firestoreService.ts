@@ -381,35 +381,49 @@ export class FirestoreService {
   // AGENDAMENTOS
   static async createAppointment(barberId: string, appointmentData: Omit<Appointment, 'id'>): Promise<string | null> {
     try {
-      // Verificar se o horário ainda está disponível
-      const barberDoc = await db.collection('barbers').doc(barberId).get();
-      const availability = barberDoc.data()?.availability || {};
-      const availableSlots = availability[appointmentData.date] || [];
-      
-      if (!availableSlots.includes(appointmentData.time)) {
-        console.log('Horário não disponível');
-        return null;
-      }
-      
-      // Criar agendamento
-      const docRef = await db.collection('barbers').doc(barberId).collection('appointments').add({
-        ...appointmentData,
-        status: 'Pendente',
-        createdAt: new Date(),
-        updatedAt: new Date()
-      });
-      
-      // Atualizar disponibilidade (remover horário)
-      const updatedSlots = availableSlots.filter(slot => slot !== appointmentData.time);
-      await db.collection('barbers').doc(barberId).update({
-        [`availability.${appointmentData.date}`]: updatedSlots
-      });
-      
-      console.log('Agendamento criado com sucesso');
-      return docRef.id;
+        const newAppointmentId = await db.runTransaction(async (transaction) => {
+            const barberDocRef = db.collection('barbers').doc(barberId);
+            const barberDoc = await transaction.get(barberDocRef);
+
+            if (!barberDoc.exists) {
+                console.error(`Barbeiro com ID ${barberId} não encontrado na transação.`);
+                return null;
+            }
+
+            const availability = barberDoc.data()?.availability || {};
+            const availableSlots = availability[appointmentData.date] || [];
+
+            if (!availableSlots.includes(appointmentData.time)) {
+                console.log('Horário não disponível - Transação abortada.');
+                return null;
+            }
+
+            const updatedSlots = availableSlots.filter(slot => slot !== appointmentData.time);
+
+            transaction.update(barberDocRef, {
+                [`availability.${appointmentData.date}`]: updatedSlots
+            });
+
+            const newAppointmentRef = barberDocRef.collection('appointments').doc();
+            transaction.set(newAppointmentRef, {
+                ...appointmentData,
+                status: 'Pendente',
+                createdAt: new Date(),
+                updatedAt: new Date()
+            });
+
+            return newAppointmentRef.id;
+        });
+
+        if (newAppointmentId) {
+            console.log('Agendamento criado com sucesso');
+            return newAppointmentId;
+        } else {
+            return null;
+        }
     } catch (error) {
-      console.error('Erro ao criar agendamento:', error);
-      return null;
+        console.error('Erro ao criar agendamento:', error);
+        return null;
     }
   }
   
