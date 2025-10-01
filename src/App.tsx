@@ -1314,6 +1314,7 @@ const AdminPanel: React.FC<{
                 clients={loyaltyClients}
                 isLoading={isLoyaltyLoading}
                 onRefresh={loadLoyaltyData}
+                shopName={barberData.profile.shopName}
               />
             )}
           </div>
@@ -2136,10 +2137,12 @@ const LoyaltyTab: React.FC<{
   clients: LoyaltyClient[];
   isLoading: boolean;
   onRefresh: () => void;
-}> = ({ barberId, clients, isLoading, onRefresh }) => {
+  shopName: string;
+}> = ({ barberId, clients, isLoading, onRefresh, shopName }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClient, setSelectedClient] = useState<LoyaltyClient | null>(null);
   const [isRedeemModalOpen, setIsRedeemModalOpen] = useState(false);
+  const [updatingClientId, setUpdatingClientId] = useState<string | null>(null);
 
   const rewards = useMemo(() => [
     { stars: 5, description: 'Prêmio (Ex: Corte Grátis)' },
@@ -2149,20 +2152,53 @@ const LoyaltyTab: React.FC<{
     client.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     client.clientWhatsapp.includes(searchTerm)
   ), [clients, searchTerm]);
+  
+  const handleAddStar = async (client: LoyaltyClient) => {
+    setUpdatingClientId(client.id);
+    try {
+      const result = await FirestoreService.addStar(
+        barberId,
+        client.clientWhatsapp,
+        client.clientName
+      );
+      if (result) {
+        alert(`⭐ Estrela adicionada para ${client.clientName}! Total: ${result.newStars} de ${result.goal}.`);
+        onRefresh();
+      } else {
+        alert(`❌ Erro ao adicionar estrela para ${client.clientName}.`);
+      }
+    } finally {
+      setUpdatingClientId(null);
+    }
+  };
+
+  const handleShareProgress = (client: LoyaltyClient) => {
+    const clientStars = (client.stars || 0) + 1; // Assume the star was just added for the message
+    const clientGoal = client.goal || 5;
+    const message = `Olá, ${client.clientName}! Agradecemos a sua preferência na ${shopName}. 💈\n\nVocê ganhou +1 estrela no nosso programa de fidelidade!\n\nSeu progresso atual é: ${clientStars} de ${clientGoal} estrelas para o próximo prêmio. 🌟\n\nContinue conosco!`;
+    const whatsappUrl = `https://wa.me/${client.clientWhatsapp}?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
+  };
+
 
   const handleRedeem = async (client: LoyaltyClient) => {
     if (!client || !client.goal) return;
+    
+    setUpdatingClientId(client.id);
+    try {
+      const success = await FirestoreService.redeemStars(
+        barberId,
+        client.clientWhatsapp,
+        client.goal
+      );
 
-    const success = await FirestoreService.redeemStars(
-      barberId,
-      client.clientWhatsapp,
-      client.goal
-    );
-
-    if (success) {
-      alert(`✅ Prêmio resgatado com sucesso para ${client.clientName}! O saldo de estrelas foi atualizado.`);
-      setIsRedeemModalOpen(false);
-      onRefresh(); // Refresh client list using prop
+      if (success) {
+        alert(`✅ Prêmio resgatado com sucesso para ${client.clientName}! O saldo de estrelas foi atualizado.`);
+        setIsRedeemModalOpen(false);
+        onRefresh();
+      }
+    } finally {
+      setUpdatingClientId(null);
     }
   };
   
@@ -2189,6 +2225,8 @@ const LoyaltyTab: React.FC<{
                   const clientGoal = client.goal || 5;
                   const clientStars = client.stars || 0;
                   const canRedeem = clientStars >= clientGoal;
+                  const isUpdating = updatingClientId === client.id;
+
                   return (
                     <div key={client.id} className="bg-gray-700 p-6 rounded-lg flex flex-col justify-between shadow-lg">
                       <div>
@@ -2227,16 +2265,34 @@ const LoyaltyTab: React.FC<{
                         </div>
                       </div>
 
-                      <button
-                        onClick={() => {
-                          setSelectedClient(client);
-                          setIsRedeemModalOpen(true);
-                        }}
-                        className="mt-6 w-full bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition duration-300 disabled:bg-gray-500 disabled:cursor-not-allowed"
-                        disabled={!canRedeem}
-                      >
-                        Resgatar Prêmio
-                      </button>
+                      <div className="mt-6 flex flex-col gap-2">
+                         <div className="flex gap-2">
+                            <button
+                                onClick={() => handleAddStar(client)}
+                                disabled={canRedeem || isUpdating}
+                                className="w-full bg-yellow-500 text-black px-4 py-2 rounded-lg text-sm font-semibold hover:bg-yellow-600 transition duration-300 disabled:bg-gray-500 disabled:cursor-not-allowed flex items-center justify-center"
+                            >
+                                {isUpdating && !isRedeemModalOpen ? 'Adicionando...' : 'Adicionar Estrela'}
+                            </button>
+                            <button
+                                onClick={() => handleShareProgress(client)}
+                                disabled={isUpdating}
+                                className="flex-shrink-0 bg-green-500 text-white p-2.5 rounded-lg hover:bg-green-600 transition duration-300 disabled:bg-gray-500"
+                            >
+                                <WhatsAppIcon className="h-5 w-5 m-0" />
+                            </button>
+                         </div>
+                        <button
+                          onClick={() => {
+                            setSelectedClient(client);
+                            setIsRedeemModalOpen(true);
+                          }}
+                          className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition duration-300 disabled:bg-gray-500 disabled:cursor-not-allowed"
+                          disabled={!canRedeem || isUpdating}
+                        >
+                          Resgatar Prêmio
+                        </button>
+                      </div>
                     </div>
                   );
                 })}
@@ -2264,10 +2320,10 @@ const LoyaltyTab: React.FC<{
                   </div>
                   <button
                     onClick={() => handleRedeem(selectedClient)}
-                    disabled={(selectedClient.stars || 0) < (selectedClient.goal || 5)}
+                    disabled={(selectedClient.stars || 0) < (selectedClient.goal || 5) || updatingClientId === selectedClient.id}
                     className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:bg-gray-500 disabled:cursor-not-allowed"
                   >
-                    Resgatar
+                    {updatingClientId === selectedClient.id ? 'Resgatando...' : 'Resgatar'}
                   </button>
                 </div>
               ))}
