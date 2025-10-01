@@ -2042,38 +2042,18 @@ const AppointmentsTab: React.FC<{
                         <button onClick={async () => {
                           const success = await FirestoreService.updateAppointmentStatus(barberId, appointment.id, 'Confirmado');
                            if (success) {
-                              // CHAMA A FUNÇÃO DE FIDELIDADE
-                              const loyaltyResult = await FirestoreService.addStar(
-                                  barberId,
-                                  appointment.clientWhatsapp,
-                                  appointment.clientName,
-                              );
-                              
                               const clientWhatsapp = appointment.clientWhatsapp.replace(/\D/g, '');
                               const serviceName = appointment.service?.name || 'seu serviço';
                               const formattedDate = new Date(appointment.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
                               const time = appointment.time;
                               const shopName = barberData.profile.shopName;
                               
-                              let loyaltyMessage = '';
-                              let alertMessage = 'Agendamento confirmado!';
-                      
-                              if (loyaltyResult) {
-                                  const { newStars, goal } = loyaltyResult;
-                                  if (newStars >= goal) {
-                                      loyaltyMessage = `\n\n🎉 PARABÉNS! Você completou seu cartão fidelidade com *${newStars} estrelas* e ganhou um prêmio! Entre em contato para resgatar.`;
-                                      alertMessage = `Agendamento confirmado! 🎉 Cliente ${appointment.clientName} completou o cartão fidelidade!`;
-                                  } else {
-                                      loyaltyMessage = `\n\nVocê ganhou +1 estrela! 🌟 Agora você tem *${newStars} de ${goal}*. Continue assim!`;
-                                      alertMessage = `Agendamento confirmado e +1 estrela adicionada para ${appointment.clientName}.`;
-                                  }
-                              }
+                              const message = `Olá, ${appointment.clientName}!\n\nSeu agendamento na ${shopName} foi CONFIRMADO com sucesso.\n\nServiço: ${serviceName}\nData: ${formattedDate}\nHora: ${time}\n\nCaso você ocorra algum imprevisto, por favor nos envie uma mensagem para cancelar o seu agendamento!\n\nAté breve!`;
                               
-                              const message = `Olá, ${appointment.clientName}! 😊\n\nSeu agendamento na *${shopName}* foi CONFIRMADO com sucesso.\n\n*Serviço:* ${serviceName}\n*Data:* ${formattedDate}\n*Hora:* ${time}${loyaltyMessage}\n\nAté breve!`;
                               const whatsappUrl = `https://wa.me/${clientWhatsapp}?text=${encodeURIComponent(message)}`;
                               
                               window.open(whatsappUrl, '_blank');
-                              alert(alertMessage);
+                              alert('Agendamento confirmado!');
                               onDataUpdate();
                           } else {
                               alert('Erro ao confirmar agendamento.');
