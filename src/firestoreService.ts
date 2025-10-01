@@ -135,7 +135,6 @@ export class FirestoreService {
           .get(),
         db.collection('barbers').doc(barberId).collection('appointments')
           .orderBy('date', 'desc')
-          .orderBy('time', 'desc')
           .limit(50)
           .get()
       ]);
