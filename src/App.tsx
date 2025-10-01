@@ -1055,6 +1055,30 @@ const AdminPanel: React.FC<{
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | undefined>(undefined);
 
+  // State for loyalty clients, managed by the parent panel
+  const [loyaltyClients, setLoyaltyClients] = useState<LoyaltyClient[]>([]);
+  const [isLoyaltyLoading, setIsLoyaltyLoading] = useState(true);
+
+  // Function to load loyalty data
+  const loadLoyaltyData = useCallback(async () => {
+    if (!barberData.id) return;
+    setIsLoyaltyLoading(true);
+    const clients = await FirestoreService.getLoyaltyClientsForBarber(barberData.id);
+    setLoyaltyClients(clients);
+    setIsLoyaltyLoading(false);
+  }, [barberData.id]);
+  
+  // Effect to load loyalty data on mount or when the barber changes
+  useEffect(() => {
+    loadLoyaltyData();
+  }, [loadLoyaltyData]);
+
+  // Combined data update handler to refresh both barber data and loyalty data
+  const handleAdminDataUpdate = useCallback(() => {
+    onDataUpdate(); // Reloads barberData (appointments, services, etc.)
+    loadLoyaltyData(); // Reloads loyalty data
+  }, [onDataUpdate, loadLoyaltyData]);
+
   // Calculate financial summary
   const financialSummary = useMemo(() => {
     if (!barberData) {
@@ -1133,7 +1157,7 @@ const AdminPanel: React.FC<{
       }
       
       setIsEditing(false);
-      onDataUpdate();
+      handleAdminDataUpdate();
     } catch (error: any) {
       console.error('❌ Erro ao salvar:', error);
       let userMessage = 'Ocorreu um erro ao salvar. Verifique o console para mais detalhes.';
@@ -1239,7 +1263,7 @@ const AdminPanel: React.FC<{
                 onSave={handleSave}
                 onCancel={handleCancel}
                 onEditDataChange={setEditData}
-                onDataUpdate={onDataUpdate}
+                onDataUpdate={handleAdminDataUpdate}
               />
             )}
             
@@ -1253,7 +1277,7 @@ const AdminPanel: React.FC<{
                 onSave={handleSave}
                 onCancel={handleCancel}
                 onEditDataChange={setEditData}
-                onDataUpdate={onDataUpdate}
+                onDataUpdate={handleAdminDataUpdate}
               />
             )}
             
@@ -1270,7 +1294,7 @@ const AdminPanel: React.FC<{
                 uploadFile={uploadFile}
                 setUploadFile={setUploadFile}
                 isUploading={isUploading}
-                onDataUpdate={onDataUpdate}
+                onDataUpdate={handleAdminDataUpdate}
               />
             )}
             
@@ -1279,7 +1303,7 @@ const AdminPanel: React.FC<{
                 barberData={barberData}
                 appointments={barberData.appointments}
                 barberId={barberData.id}
-                onDataUpdate={onDataUpdate}
+                onDataUpdate={handleAdminDataUpdate}
                 availability={barberData.availability}
               />
             )}
@@ -1287,6 +1311,9 @@ const AdminPanel: React.FC<{
             {activeTab === 'loyalty' && (
               <LoyaltyTab 
                 barberId={barberData.id}
+                clients={loyaltyClients}
+                isLoading={isLoyaltyLoading}
+                onRefresh={loadLoyaltyData}
               />
             )}
           </div>
@@ -2124,9 +2151,12 @@ const AppointmentsTab: React.FC<{
 };
 
 // Loyalty Tab
-const LoyaltyTab: React.FC<{ barberId: string }> = ({ barberId }) => {
-  const [clients, setClients] = useState<LoyaltyClient[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+const LoyaltyTab: React.FC<{ 
+  barberId: string;
+  clients: LoyaltyClient[];
+  isLoading: boolean;
+  onRefresh: () => void;
+}> = ({ barberId, clients, isLoading, onRefresh }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClient, setSelectedClient] = useState<LoyaltyClient | null>(null);
   const [isRedeemModalOpen, setIsRedeemModalOpen] = useState(false);
@@ -2134,17 +2164,6 @@ const LoyaltyTab: React.FC<{ barberId: string }> = ({ barberId }) => {
   const rewards = useMemo(() => [
     { stars: 5, description: 'Prêmio (Ex: Corte Grátis)' },
   ], []);
-  
-  const fetchClients = useCallback(async () => {
-    setIsLoading(true);
-    const loyaltyClients = await FirestoreService.getLoyaltyClientsForBarber(barberId);
-    setClients(loyaltyClients);
-    setIsLoading(false);
-  }, [barberId]);
-
-  useEffect(() => {
-    fetchClients();
-  }, [fetchClients]);
 
   const filteredClients = useMemo(() => clients.filter(client =>
     client.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -2163,7 +2182,7 @@ const LoyaltyTab: React.FC<{ barberId: string }> = ({ barberId }) => {
     if (success) {
       alert(`✅ Prêmio resgatado com sucesso para ${client.clientName}! O saldo de estrelas foi atualizado.`);
       setIsRedeemModalOpen(false);
-      fetchClients(); // Refresh client list
+      onRefresh(); // Refresh client list using prop
     }
   };
   
