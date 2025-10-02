@@ -409,14 +409,48 @@ export class FirestoreService {
           if (!appointmentDoc.exists) throw new Error("Agendamento não encontrado.");
           
           const appointmentData = appointmentDoc.data() as Appointment;
+          const currentStatus = appointmentData.status;
           
-          // Apenas remove o horário da disponibilidade QUANDO o status muda para "Confirmado"
-          if (status === 'Confirmado') {
+          // Apenas executa a lógica se o status estiver mudando de Pendente para Confirmado
+          if (currentStatus === 'Pendente' && status === 'Confirmado') {
+            // 1. Atualiza a disponibilidade
             const availability = barberDoc.data()?.availability || {};
             const daySlots = availability[appointmentData.date] || [];
             if (daySlots.includes(appointmentData.time)) {
               const updatedSlots = daySlots.filter((slot: string) => slot !== appointmentData.time);
               transaction.update(barberRef, { [`availability.${appointmentData.date}`]: updatedSlots });
+            }
+            
+            // 2. Adiciona uma estrela de fidelidade
+            const GOAL = 5;
+            const normalizedWhatsapp = appointmentData.clientWhatsapp.replace(/\D/g, '');
+            if (normalizedWhatsapp) {
+                const loyaltyDocId = `${barberId}_${normalizedWhatsapp}`;
+                const clientRef = db.collection('loyaltyClients').doc(loyaltyDocId);
+                const clientDoc = await transaction.get(clientRef);
+                
+                const data = clientDoc.data() as LoyaltyClient | undefined;
+                const currentStars = data?.stars || 0;
+                const currentGoal = data?.goal || GOAL;
+
+                if (currentStars < currentGoal) {
+                    const newStars = currentStars + 1;
+                    const clientData: Partial<LoyaltyClient> = {
+                        barberId, 
+                        clientWhatsapp: normalizedWhatsapp, 
+                        clientName: appointmentData.clientName,
+                        stars: newStars, 
+                        goal: currentGoal,
+                        lifetimeAppointments: (data?.lifetimeAppointments || 0) + 1,
+                        updatedAt: new Date(),
+                    };
+                    if (!clientDoc.exists) {
+                      clientData.id = loyaltyDocId;
+                      clientData.createdAt = new Date();
+                      clientData.points = 0;
+                    }
+                    transaction.set(clientRef, clientData, { merge: true });
+                }
             }
           }
           
