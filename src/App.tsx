@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useCallback, useMemo, ChangeEvent, useEffect, useRef } from 'react';
 import type { Promotion, GalleryImage, Service, Appointment, LoyaltyClient } from './types';
 import { FirestoreService, BarberData } from './firestoreService';
@@ -75,6 +76,58 @@ const calculateFinancials = (appointments: (Appointment & { servicePrice?: numbe
   };
 };
 
+// === FUNÇÃO DE VALIDAÇÃO DE ACESSO ===
+const validateBarberAccess = (
+  barberData: BarberData,
+  user: any,
+  setUnauthorizedAccessInfo: (info: { userEmail: string; attemptedSlug: string } | null) => void
+): boolean => {
+  if (!barberData || !user) return false;
+  
+  // O ID do documento do barbeiro DEVE ser o UID do usuário.
+  const ownerId = barberData.id;
+  
+  if (user.uid !== ownerId) {
+    console.warn(
+      `SECURITY VIOLATION: User ${user.uid} (${user.email}) attempted to access admin panel for barber ${barberData.id} (${barberData.profile.shopName}).`
+    );
+    setUnauthorizedAccessInfo({
+      userEmail: user.email || 'Desconhecido',
+      attemptedSlug: barberData.profile.slug,
+    });
+    return false;
+  }
+  
+  setUnauthorizedAccessInfo(null);
+  return true;
+};
+
+// === COMPONENTE DE ACESSO NÃO AUTORIZADO ===
+const UnauthorizedAccess: React.FC<{
+  userEmail: string;
+  attemptedSlug: string;
+  onLogout: () => void;
+}> = ({ userEmail, attemptedSlug, onLogout }) => (
+  <div className="flex flex-col items-center justify-center h-screen bg-gray-900 text-white text-center p-4">
+    <h1 className="text-4xl font-bold mb-4 text-red-500">Acesso Não Autorizado</h1>
+    <p className="text-gray-300 max-w-md mb-2">
+      Você está logado como <strong className="text-white">{userEmail}</strong>, mas não tem permissão para gerenciar a barbearia <strong className="text-white">"{attemptedSlug}"</strong>.
+    </p>
+    <p className="text-gray-400 max-w-md">
+      Isso pode acontecer se você estiver logado com a conta errada. Por favor, saia e entre com a conta correta associada a esta barbearia.
+    </p>
+    <button
+      onClick={async () => {
+        await onLogout();
+        window.location.href = `/${attemptedSlug}/admin`;
+      }}
+      className="mt-8 bg-red-600 text-white font-bold py-3 px-8 rounded-lg text-lg uppercase hover:bg-red-700 transition duration-300"
+    >
+      Sair e Tentar Novamente
+    </button>
+  </div>
+);
+
 
 // === COMPONENTE APP PRINCIPAL REATORADO ===
 const App: React.FC = () => {
@@ -86,6 +139,7 @@ const App: React.FC = () => {
   const [view, setView] = useState<'client' | 'admin'>('client');
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [loginError, setLoginError] = useState('');
+  const [unauthorizedAccessInfo, setUnauthorizedAccessInfo] = useState<{ userEmail: string; attemptedSlug: string } | null>(null);
 
   const currentRoute = useRouting();
 
@@ -121,11 +175,9 @@ const App: React.FC = () => {
 
   // Efeito para gerenciar o estado de autenticação
   useEffect(() => {
-    console.log('🔒 Auth effect setup');
     const unsubscribe = auth.onAuthStateChanged(currentUser => {
       setUser(currentUser);
       setIsAuthLoading(false);
-      console.log('🔑 Auth state changed:', currentUser ? currentUser.uid : 'logged out');
     });
     return () => unsubscribe();
   }, []);
@@ -134,50 +186,60 @@ const App: React.FC = () => {
   useEffect(() => {
     const initializeApp = async () => {
       if (!currentRoute || isAuthLoading) {
-        console.log('⏳ Aguardando rota ou autenticação...');
         return;
       }
       
-      console.log('🚀 Inicializando aplicação com rota:', currentRoute, 'e usuário:', user?.uid);
       setLoading(true);
       setErrorMessage(null);
+      setUnauthorizedAccessInfo(null); // Reset on every navigation
       
       try {
         const isConnected = await testFirebaseConnection();
         if (!isConnected) {
-          console.error('❌ Falha na conexão com Firebase');
           setErrorMessage(APP_CONFIG.ERROR_MESSAGES.CONNECTION_ERROR);
           setLoading(false);
           return;
         }
 
+        const slug = currentRoute.slug;
+        if (!slug && (currentRoute.type === 'admin' || currentRoute.type === 'notfound')) {
+            setErrorMessage(APP_CONFIG.ERROR_MESSAGES.BARBER_NOT_FOUND);
+            setLoading(false);
+            return;
+        }
+        
+        const barberId = slug ? await FirestoreService.findBarberBySlug(slug) : null;
+        
+        if (currentRoute.type === 'notfound' || !barberId) {
+            setErrorMessage(APP_CONFIG.ERROR_MESSAGES.BARBER_NOT_FOUND);
+            setLoading(false);
+            return;
+        }
+        
+        const data = await FirestoreService.loadBarberData(barberId);
+        
+        if (!data) {
+            setErrorMessage(APP_CONFIG.ERROR_MESSAGES.BARBER_NOT_FOUND);
+            setLoading(false);
+            return;
+        }
+        
+        setBarberData(data); // Set public data for client view regardless
+
         if (currentRoute.type === 'admin') {
-          if (user) {
-            const barberId = await FirestoreService.findBarberByUserId(user.uid);
-            if (barberId) {
-              await loadBarberData(barberId);
-              setView('admin');
+            if (user) {
+                // Perform security validation
+                if (validateBarberAccess(data, user, setUnauthorizedAccessInfo)) {
+                    setView('admin'); // Authorized
+                } else {
+                    setView('client'); // Unauthorized, keep client view in background
+                }
             } else {
-              setErrorMessage('Você não tem permissão para acessar esta área.');
+                setView('client');
+                setShowLoginModal(true);
             }
-          } else {
-            // Não logado tentando acessar admin, carrega a visão do cliente por trás
-            if (currentRoute.slug) {
-              const barberId = await FirestoreService.findBarberBySlug(currentRoute.slug);
-              await loadBarberData(barberId);
-            }
+        } else {
             setView('client');
-          }
-        } else if (currentRoute.type === 'barber') {
-          setView('client');
-          if (currentRoute.slug) {
-            const barberId = await FirestoreService.findBarberBySlug(currentRoute.slug);
-            await loadBarberData(barberId);
-          } else {
-             setErrorMessage(APP_CONFIG.ERROR_MESSAGES.BARBER_NOT_FOUND);
-          }
-        } else if (currentRoute.type === 'notfound') {
-          setErrorMessage(APP_CONFIG.ERROR_MESSAGES.BARBER_NOT_FOUND);
         }
       } catch (error) {
         console.error('❌ Erro na inicialização:', error);
@@ -188,16 +250,17 @@ const App: React.FC = () => {
     };
 
     initializeApp();
-  }, [currentRoute, user, isAuthLoading, loadBarberData, handleFirestoreError]);
+  }, [currentRoute, user, isAuthLoading, handleFirestoreError]);
   
   // Handlers
   const handleAdminAreaClick = () => {
     if (user && view === 'admin') {
-       // Se já está na visão de admin, não faz nada
        return;
     }
     if (user) {
-      setView('admin');
+       // A validação ocorrerá no useEffect quando a rota mudar
+       window.history.pushState({}, '', `/${barberData?.profile.slug}/admin`);
+       window.dispatchEvent(new PopStateEvent('popstate'));
     } else {
       setLoginError('');
       setShowLoginModal(true);
@@ -209,7 +272,6 @@ const App: React.FC = () => {
       setLoginError('');
       await auth.signInWithEmailAndPassword(email, password);
       setShowLoginModal(false);
-      // onAuthStateChanged irá lidar com o resto
     } catch (error) {
       console.error('Erro no login:', error);
       setLoginError('Email ou senha inválidos. Tente novamente.');
@@ -232,7 +294,7 @@ const App: React.FC = () => {
         const barberId = await FirestoreService.createNewBarber(user.uid, barberProfileData);
   
         if (barberId) {
-          setShowLoginModal(false); // Sucesso, o onAuthStateChanged fará o resto
+          setShowLoginModal(false); 
         } else {
           await user.delete();
           setLoginError('Erro ao criar o perfil da barbearia. Tente novamente.');
@@ -255,7 +317,8 @@ const App: React.FC = () => {
   const handleLogout = async () => {
     await auth.signOut();
     setView('client');
-    // A mudança de 'user' no onAuthStateChanged vai recarregar os dados corretos.
+    // Força o recarregamento para limpar o estado e voltar à página pública
+    window.location.href = `/${barberData?.profile.slug || ''}`;
   };
 
   const handleBookingSuccess = () => {
@@ -268,6 +331,16 @@ const App: React.FC = () => {
     return <LoadingSpinner message="Carregando..." />;
   }
 
+  if (unauthorizedAccessInfo) {
+    return (
+      <UnauthorizedAccess
+        userEmail={unauthorizedAccessInfo.userEmail}
+        attemptedSlug={unauthorizedAccessInfo.attemptedSlug}
+        onLogout={handleLogout}
+      />
+    );
+  }
+  
   if (errorMessage) {
     return <ConnectionError message={errorMessage} />;
   }
@@ -276,7 +349,7 @@ const App: React.FC = () => {
     return <LoadingSpinner message="Carregando dados da barbearia..." />;
   }
   
-  if (view === 'admin' && user) {
+  if (view === 'admin' && user && !unauthorizedAccessInfo) {
      return (
       <AdminPanel 
         barberData={barberData} 
@@ -1104,6 +1177,7 @@ const AdminPanel: React.FC<{
       if (uploadFile) {
         const folder = activeTab === 'profile' ? 'logos' : 'gallery';
         const newUrl = await FirestoreService.uploadImage(
+          barberData.id, // Pass barberId for security
           uploadFile, 
           folder,
           (progress) => setUploadProgress(progress)
@@ -1160,7 +1234,7 @@ const AdminPanel: React.FC<{
       handleAdminDataUpdate();
     } catch (error: any) {
       console.error('❌ Erro ao salvar:', error);
-      let userMessage = 'Ocorreu um erro ao salvar. Verifique o console para mais detalhes.';
+      let userMessage = error.message || 'Ocorreu um erro ao salvar. Verifique o console para mais detalhes.';
       if (error && error.code === 'storage/unauthorized') {
         userMessage = 'Erro de permissão ao salvar a imagem. Isso geralmente é causado por uma configuração incorreta de CORS no Firebase Storage. Por favor, verifique as regras e a configuração de CORS do seu bucket.';
       }
