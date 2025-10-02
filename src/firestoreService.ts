@@ -1,3 +1,6 @@
+// FIX: Import the 'firebase' module to resolve type errors for DocumentSnapshot and DocumentReference.
+import firebase from 'firebase/compat/app';
+import 'firebase/compat/firestore';
 import { db, storage, auth } from './firebaseConfig';
 import type { Promotion, GalleryImage, Service, Appointment, LoyaltyClient } from './types';
 
@@ -402,16 +405,30 @@ export class FirestoreService {
       
       try {
         await db.runTransaction(async (transaction) => {
-          const barberDoc = await transaction.get(barberRef);
+          // --- ETAPA 1: LEITURA ---
+          // Leia todos os documentos necessários ANTES de qualquer escrita.
           const appointmentDoc = await transaction.get(appointmentRef);
-
-          if (!barberDoc.exists) throw new Error("Barbearia não encontrada.");
           if (!appointmentDoc.exists) throw new Error("Agendamento não encontrado.");
           
+          const barberDoc = await transaction.get(barberRef);
+          if (!barberDoc.exists) throw new Error("Barbearia não encontrada.");
+
           const appointmentData = appointmentDoc.data() as Appointment;
+          const normalizedWhatsapp = appointmentData.clientWhatsapp.replace(/\D/g, '');
+          
+          let clientDoc: firebase.firestore.DocumentSnapshot | null = null;
+          let clientRef: firebase.firestore.DocumentReference | null = null;
+
+          if (normalizedWhatsapp) {
+            const loyaltyDocId = `${barberId}_${normalizedWhatsapp}`;
+            clientRef = db.collection('loyaltyClients').doc(loyaltyDocId);
+            clientDoc = await transaction.get(clientRef);
+          }
+
+          // --- ETAPA 2: LÓGICA E ESCRITA ---
+          // Agora que todas as leituras foram concluídas, prossiga com as escritas.
           const currentStatus = appointmentData.status;
           
-          // Apenas executa a lógica se o status estiver mudando de Pendente para Confirmado
           if (currentStatus === 'Pendente' && status === 'Confirmado') {
             // 1. Atualiza a disponibilidade
             const availability = barberDoc.data()?.availability || {};
@@ -422,14 +439,9 @@ export class FirestoreService {
             }
             
             // 2. Adiciona uma estrela de fidelidade
-            const GOAL = 5;
-            const normalizedWhatsapp = appointmentData.clientWhatsapp.replace(/\D/g, '');
-            if (normalizedWhatsapp) {
-                const loyaltyDocId = `${barberId}_${normalizedWhatsapp}`;
-                const clientRef = db.collection('loyaltyClients').doc(loyaltyDocId);
-                const clientDoc = await transaction.get(clientRef);
-                
-                const data = clientDoc.data() as LoyaltyClient | undefined;
+            if (clientRef) { // Verifica se a referência foi criada
+                const GOAL = 5;
+                const data = clientDoc?.data() as LoyaltyClient | undefined;
                 const currentStars = data?.stars || 0;
                 const currentGoal = data?.goal || GOAL;
 
@@ -444,16 +456,16 @@ export class FirestoreService {
                         lifetimeAppointments: (data?.lifetimeAppointments || 0) + 1,
                         updatedAt: new Date(),
                     };
-                    if (!clientDoc.exists) {
-                      clientData.id = loyaltyDocId;
+                    if (!clientDoc?.exists) {
+                      clientData.id = clientRef.id;
                       clientData.createdAt = new Date();
-                      clientData.points = 0;
                     }
                     transaction.set(clientRef, clientData, { merge: true });
                 }
             }
           }
           
+          // 3. Atualiza o status do agendamento
           const updateData: any = { status, updatedAt: new Date() };
           if (status === 'Confirmado') {
             updateData.lembrete24henviado = false;
@@ -648,7 +660,6 @@ export class FirestoreService {
             if (!clientDoc.exists) {
               clientData.id = docId;
               clientData.createdAt = new Date();
-              clientData.points = 0;
             }
             transaction.set(clientRef, clientData, { merge: true });
             return { newStars, goal: currentGoal };
