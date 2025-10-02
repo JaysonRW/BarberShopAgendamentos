@@ -1576,7 +1576,7 @@ const ProfileTab: React.FC<{
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Digite o nome do seu Portal ex: barbeariadojose</label>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Seu Endereço de Perfil	ex: nomedoseusalão</label>
               <input
                 type="text"
                 value={editData.slug || ''}
