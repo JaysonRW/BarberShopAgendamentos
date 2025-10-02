@@ -336,68 +336,81 @@ export class FirestoreService {
     });
   }
   
-  // AGENDAMENTOS
+  // AGENDAMENTOS - LÓGICA REATORADA PARA SEGURANÇA
   static async createAppointment(barberId: string, appointmentData: Omit<Appointment, 'id'>): Promise<string | null> {
     try {
-        const newAppointmentId = await db.runTransaction(async (transaction) => {
-            const barberDocRef = db.collection('barbers').doc(barberId);
-            const barberDoc = await transaction.get(barberDocRef);
+      // Passo 1: Verificar a disponibilidade (operação de leitura, permitida publicamente)
+      const barberDocRef = db.collection('barbers').doc(barberId);
+      const barberDoc = await barberDocRef.get();
+      if (!barberDoc.exists) throw new Error("Barbearia não encontrada.");
 
-            if (!barberDoc.exists) {
-                console.error(`Barbeiro com ID ${barberId} não encontrado na transação.`);
-                return null;
-            }
+      const availability = barberDoc.data()?.availability || {};
+      const availableSlots = availability[appointmentData.date] || [];
 
-            const availability = barberDoc.data()?.availability || {};
-            const availableSlots = availability[appointmentData.date] || [];
-
-            if (!availableSlots.includes(appointmentData.time)) {
-                console.log('Horário não disponível - Transação abortada.');
-                return null;
-            }
-
-            const updatedSlots = availableSlots.filter(slot => slot !== appointmentData.time);
-
-            transaction.update(barberDocRef, {
-                [`availability.${appointmentData.date}`]: updatedSlots
-            });
-
-            const newAppointmentRef = barberDocRef.collection('appointments').doc();
-            transaction.set(newAppointmentRef, {
-                ...appointmentData,
-                status: 'Pendente',
-                createdAt: new Date(),
-                updatedAt: new Date()
-            });
-
-            return newAppointmentRef.id;
-        });
-
-        if (newAppointmentId) {
-            console.log('Agendamento criado com sucesso');
-            return newAppointmentId;
-        } else {
-            return null;
-        }
-    } catch (error) {
-        console.error('Erro ao criar agendamento:', error);
+      if (!availableSlots.includes(appointmentData.time)) {
+        alert('Desculpe, este horário não está mais disponível. Por favor, escolha outro.');
         return null;
+      }
+      
+      // Passo 2: Criar o agendamento como "Pendente" (operação de escrita na subcoleção)
+      // Esta operação requer uma regra de segurança que permita a criação de documentos por qualquer usuário.
+      const newAppointmentRef = db.collection('barbers').doc(barberId).collection('appointments').doc();
+      await newAppointmentRef.set({
+        ...appointmentData,
+        status: 'Pendente',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        lembrete24henviado: false
+      });
+      
+      // A disponibilidade NÃO é atualizada aqui. Será atualizada pelo barbeiro ao confirmar.
+      return newAppointmentRef.id;
+
+    } catch (error) {
+      console.error('Erro ao criar agendamento:', error);
+      const typedError = error as { message?: string };
+      if (typedError.message && typedError.message.includes('permission-denied')) {
+        alert('Ocorreu um erro de permissão. A configuração de segurança da barbearia pode estar impedindo novos agendamentos. Por favor, avise o proprietário.');
+      } else {
+        alert('Não foi possível registrar seu agendamento. Tente novamente.');
+      }
+      return null;
     }
   }
   
   static async updateAppointmentStatus(barberId: string, appointmentId: string, status: 'Pendente' | 'Confirmado'): Promise<boolean> {
     return this.withAuthentication(barberId, async () => {
+      const barberRef = db.collection('barbers').doc(barberId);
+      const appointmentRef = barberRef.collection('appointments').doc(appointmentId);
+      
       try {
-        const updateData: { status: string; updatedAt: Date; lembrete24henviado?: boolean } = {
-          status,
-          updatedAt: new Date()
-        };
-        // Quando um agendamento é confirmado, preparamos o campo para o lembrete de 24h.
-        if (status === 'Confirmado') {
-          updateData.lembrete24henviado = false;
-        }
+        await db.runTransaction(async (transaction) => {
+          const barberDoc = await transaction.get(barberRef);
+          const appointmentDoc = await transaction.get(appointmentRef);
 
-        await db.collection('barbers').doc(barberId).collection('appointments').doc(appointmentId).update(updateData);
+          if (!barberDoc.exists) throw new Error("Barbearia não encontrada.");
+          if (!appointmentDoc.exists) throw new Error("Agendamento não encontrado.");
+          
+          const appointmentData = appointmentDoc.data() as Appointment;
+          
+          // Apenas remove o horário da disponibilidade QUANDO o status muda para "Confirmado"
+          if (status === 'Confirmado') {
+            const availability = barberDoc.data()?.availability || {};
+            const daySlots = availability[appointmentData.date] || [];
+            if (daySlots.includes(appointmentData.time)) {
+              const updatedSlots = daySlots.filter((slot: string) => slot !== appointmentData.time);
+              transaction.update(barberRef, { [`availability.${appointmentData.date}`]: updatedSlots });
+            }
+          }
+          
+          const updateData: any = { status, updatedAt: new Date() };
+          if (status === 'Confirmado') {
+            updateData.lembrete24henviado = false;
+          }
+          
+          transaction.update(appointmentRef, updateData);
+        });
+        
         return true;
       } catch (error) {
         console.error('Erro ao atualizar status do agendamento:', error);
@@ -633,7 +646,8 @@ export class FirestoreService {
         return true;
       } catch (error) {
         console.error('❌ Erro ao resgatar estrelas:', error);
-        alert(error instanceof Error ? error.message : 'Erro desconhecido');
+        const typedError = error as { message?: string };
+        alert(typedError.message || 'Erro desconhecido');
         return false;
       }
     });
