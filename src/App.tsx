@@ -1,11 +1,12 @@
 
 
 
+
 import React, { useState, useCallback, useMemo, ChangeEvent, useEffect, useRef } from 'react';
 import type { Promotion, GalleryImage, Service, Appointment, LoyaltyClient } from './types';
 import { FirestoreService, BarberData } from './firestoreService';
 import { auth } from './firebaseConfig';
-import { testFirebaseConnection, testFirestoreWrite, testFirestoreRead } from './firebaseTest';
+import { testFirestoreWrite, testFirestoreRead } from './firebaseTest';
 import { APP_CONFIG, getBarberSlugFromUrl, debugLog } from './config';
 import { populateTestData, createTestBarber } from './populateTestData';
 
@@ -194,13 +195,6 @@ const App: React.FC = () => {
       setUnauthorizedAccessInfo(null); // Reset on every navigation
       
       try {
-        const isConnected = await testFirebaseConnection();
-        if (!isConnected) {
-          setErrorMessage(APP_CONFIG.ERROR_MESSAGES.CONNECTION_ERROR);
-          setLoading(false);
-          return;
-        }
-
         const slug = currentRoute.slug;
         if (!slug && (currentRoute.type === 'admin' || currentRoute.type === 'notfound')) {
             setErrorMessage(APP_CONFIG.ERROR_MESSAGES.BARBER_NOT_FOUND);

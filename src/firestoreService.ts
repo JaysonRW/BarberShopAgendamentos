@@ -441,12 +441,6 @@ export class FirestoreService {
   // BUSCA POR SLUG PÚBLICO
   static async findBarberBySlug(slug: string): Promise<string | null> {
     try {
-      const slugDoc = await db.collection('public-slugs').doc(slug).get();
-      
-      if (slugDoc.exists && slugDoc.data()?.isActive) {
-        return slugDoc.data()?.barberId || null;
-      }
-      
       const barbersSnapshot = await db.collection('barbers')
         .where('profile.slug', '==', slug)
         .limit(1)
@@ -502,8 +496,9 @@ export class FirestoreService {
     let counter = 1;
     let finalSlug = slug;
     while (true) {
-      const slugDoc = await db.collection('public-slugs').doc(finalSlug).get();
-      if (!slugDoc.exists) break;
+      // Since we removed public-slugs, we query the main collection. This might be slow.
+      const barbersSnapshot = await db.collection('barbers').where('profile.slug', '==', finalSlug).limit(1).get();
+      if (barbersSnapshot.empty) break;
       finalSlug = `${slug}-${counter}`;
       counter++;
     }
@@ -532,11 +527,7 @@ export class FirestoreService {
         availability: this.generateInitialAvailability()
       });
       
-      await db.collection('public-slugs').doc(uniqueSlug).set({
-        barberId: barberId,
-        isActive: true,
-        lastUpdated: new Date()
-      });
+      // No longer creating in public-slugs to avoid permission errors
       return barberId;
     } catch (error) {
       console.error('❌ Erro ao criar novo barbeiro:', error);
