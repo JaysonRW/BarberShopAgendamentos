@@ -1,9 +1,3 @@
-
-
-
-
-
-
 import React, { useState, useCallback, useMemo, ChangeEvent, useEffect, useRef } from 'react';
 import type { Promotion, GalleryImage, Service, Appointment, LoyaltyClient } from './types';
 import { FirestoreService, BarberData } from './firestoreService';
@@ -148,7 +142,7 @@ const App: React.FC = () => {
 
   const handleFirestoreError = useCallback((error: any) => {
     console.error('Firestore Error:', error);
-    if (error.code === 'unavailable') {
+    if (error.code === 'unavailable' || error.code === 'permission-denied') {
       setErrorMessage(APP_CONFIG.ERROR_MESSAGES.CONNECTION_ERROR);
     } else {
       setErrorMessage(APP_CONFIG.ERROR_MESSAGES.FIREBASE_ERROR);
@@ -164,7 +158,7 @@ const App: React.FC = () => {
     }
     
     try {
-      const data = await FirestoreService.loadBarberData(barberId);
+      const data = await FirestoreService.loadPublicBarberData(barberId);
       if (data) {
         setBarberData(data);
         setErrorMessage(null);
@@ -212,7 +206,7 @@ const App: React.FC = () => {
             return;
         }
         
-        const data = await FirestoreService.loadBarberData(barberId);
+        const data = await FirestoreService.loadPublicBarberData(barberId);
         
         if (!data) {
             setErrorMessage(APP_CONFIG.ERROR_MESSAGES.BARBER_NOT_FOUND);
@@ -1196,11 +1190,25 @@ const AdminPanel: React.FC<{
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | undefined>(undefined);
 
-  // State for loyalty clients, managed by the parent panel
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [isLoadingAppointments, setIsLoadingAppointments] = useState(true);
   const [loyaltyClients, setLoyaltyClients] = useState<LoyaltyClient[]>([]);
   const [isLoyaltyLoading, setIsLoyaltyLoading] = useState(true);
 
-  // Function to load loyalty data
+  const loadAppointments = useCallback(async () => {
+    if (!barberData.id) return;
+    setIsLoadingAppointments(true);
+    try {
+      const appts = await FirestoreService.getAppointments(barberData.id);
+      setAppointments(appts);
+    } catch (error) {
+      console.error("Erro ao carregar agendamentos:", error);
+      alert("Não foi possível carregar os agendamentos. Verifique as permissões e sua conexão.");
+    } finally {
+      setIsLoadingAppointments(false);
+    }
+  }, [barberData.id]);
+
   const loadLoyaltyData = useCallback(async () => {
     if (!barberData.id) return;
     setIsLoyaltyLoading(true);
@@ -1208,25 +1216,26 @@ const AdminPanel: React.FC<{
     setLoyaltyClients(clients);
     setIsLoyaltyLoading(false);
   }, [barberData.id]);
-  
-  // Effect to load loyalty data on mount or when the barber changes
+
   useEffect(() => {
+    loadAppointments();
     loadLoyaltyData();
-  }, [loadLoyaltyData]);
+  }, [loadAppointments, loadLoyaltyData]);
 
-  // Combined data update handler to refresh both barber data and loyalty data
+  const fullBarberData = useMemo(() => ({
+    ...barberData,
+    appointments,
+  }), [barberData, appointments]);
+  
   const handleAdminDataUpdate = useCallback(() => {
-    onDataUpdate(); // Reloads barberData (appointments, services, etc.)
-    loadLoyaltyData(); // Reloads loyalty data
-  }, [onDataUpdate, loadLoyaltyData]);
+    onDataUpdate();
+    loadAppointments();
+    loadLoyaltyData();
+  }, [onDataUpdate, loadAppointments, loadLoyaltyData]);
 
-  // Calculate financial summary
   const financialSummary = useMemo(() => {
-    if (!barberData) {
-      return { confirmedTotal: 0, pendingTotal: 0, totalRevenue: 0 };
-    }
-    return calculateFinancials(barberData.appointments);
-  }, [barberData]);
+    return calculateFinancials(appointments);
+  }, [appointments]);
 
 
   const handleEdit = (section: string, data: any) => {
@@ -1241,11 +1250,10 @@ const AdminPanel: React.FC<{
     try {
       let finalEditData = { ...editData };
 
-      // Etapa de Upload de Imagem
       if (uploadFile) {
         const folder = activeTab === 'profile' ? 'logos' : 'gallery';
         const newUrl = await FirestoreService.uploadImage(
-          barberData.id, // Pass barberId for security
+          barberData.id,
           uploadFile, 
           folder,
           (progress) => setUploadProgress(progress)
@@ -1255,9 +1263,6 @@ const AdminPanel: React.FC<{
         if (activeTab === 'gallery') finalEditData.src = newUrl;
       }
       
-      console.log('💾 Salvando dados:', finalEditData);
-      
-      // Etapa de Salvamento no Firestore
       let success = false;
       let message = '';
       
@@ -1323,7 +1328,6 @@ const AdminPanel: React.FC<{
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       {isUploading && <LoadingSpinner message="Salvando dados..." progress={uploadProgress} />}
-      {/* Header */}
       <header className="bg-gray-800 border-b border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
@@ -1343,7 +1347,6 @@ const AdminPanel: React.FC<{
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex flex-col lg:flex-row gap-8">
-          {/* Sidebar */}
           <div className="lg:w-64">
             <nav className="space-y-2">
               {[
@@ -1371,93 +1374,100 @@ const AdminPanel: React.FC<{
             </nav>
           </div>
 
-          {/* Main Content */}
           <div className="flex-1">
-            {activeTab === 'dashboard' && (
-              <DashboardTab 
-                barberData={barberData} 
-                financialSummary={financialSummary}
-              />
-            )}
-            
-            {activeTab === 'profile' && (
-              <ProfileTab 
-                barberData={barberData} 
-                onEdit={handleEdit}
-                isEditing={isEditing}
-                editData={editData}
-                onSave={handleSave}
-                onCancel={handleCancel}
-                onEditDataChange={setEditData}
-                uploadFile={uploadFile}
-                setUploadFile={setUploadFile}
-                isUploading={isUploading}
-              />
-            )}
-            
-            {activeTab === 'services' && (
-              <ServicesTab 
-                services={barberData.services}
-                barberId={barberData.id}
-                onEdit={handleEdit}
-                isEditing={isEditing}
-                editData={editData}
-                onSave={handleSave}
-                onCancel={handleCancel}
-                onEditDataChange={setEditData}
-                onDataUpdate={handleAdminDataUpdate}
-              />
-            )}
-            
-            {activeTab === 'promotions' && (
-              <PromotionsTab 
-                promotions={barberData.promotions}
-                barberId={barberData.id}
-                onEdit={handleEdit}
-                isEditing={isEditing}
-                editData={editData}
-                onSave={handleSave}
-                onCancel={handleCancel}
-                onEditDataChange={setEditData}
-                onDataUpdate={handleAdminDataUpdate}
-              />
-            )}
-            
-            {activeTab === 'gallery' && (
-              <GalleryTab 
-                images={barberData.galleryImages}
-                barberId={barberData.id}
-                onEdit={handleEdit}
-                isEditing={isEditing}
-                editData={editData}
-                onSave={handleSave}
-                onCancel={handleCancel}
-                onEditDataChange={setEditData}
-                uploadFile={uploadFile}
-                setUploadFile={setUploadFile}
-                isUploading={isUploading}
-                onDataUpdate={handleAdminDataUpdate}
-              />
-            )}
-            
-            {activeTab === 'appointments' && (
-              <AppointmentsTab 
-                barberData={barberData}
-                appointments={barberData.appointments}
-                barberId={barberData.id}
-                onDataUpdate={handleAdminDataUpdate}
-                availability={barberData.availability}
-              />
-            )}
-            
-            {activeTab === 'loyalty' && (
-              <LoyaltyTab 
-                barberId={barberData.id}
-                clients={loyaltyClients}
-                isLoading={isLoyaltyLoading}
-                onRefresh={loadLoyaltyData}
-                shopName={barberData.profile.shopName}
-              />
+            {isLoadingAppointments ? (
+              <div className="flex justify-center items-center h-full">
+                <LoadingSpinner message="Carregando dados do painel..." />
+              </div>
+            ) : (
+              <>
+                {activeTab === 'dashboard' && (
+                  <DashboardTab 
+                    barberData={fullBarberData} 
+                    financialSummary={financialSummary}
+                  />
+                )}
+                
+                {activeTab === 'profile' && (
+                  <ProfileTab 
+                    barberData={barberData} 
+                    onEdit={handleEdit}
+                    isEditing={isEditing}
+                    editData={editData}
+                    onSave={handleSave}
+                    onCancel={handleCancel}
+                    onEditDataChange={setEditData}
+                    uploadFile={uploadFile}
+                    setUploadFile={setUploadFile}
+                    isUploading={isUploading}
+                  />
+                )}
+                
+                {activeTab === 'services' && (
+                  <ServicesTab 
+                    services={barberData.services}
+                    barberId={barberData.id}
+                    onEdit={handleEdit}
+                    isEditing={isEditing}
+                    editData={editData}
+                    onSave={handleSave}
+                    onCancel={handleCancel}
+                    onEditDataChange={setEditData}
+                    onDataUpdate={handleAdminDataUpdate}
+                  />
+                )}
+                
+                {activeTab === 'promotions' && (
+                  <PromotionsTab 
+                    promotions={barberData.promotions}
+                    barberId={barberData.id}
+                    onEdit={handleEdit}
+                    isEditing={isEditing}
+                    editData={editData}
+                    onSave={handleSave}
+                    onCancel={handleCancel}
+                    onEditDataChange={setEditData}
+                    onDataUpdate={handleAdminDataUpdate}
+                  />
+                )}
+                
+                {activeTab === 'gallery' && (
+                  <GalleryTab 
+                    images={barberData.galleryImages}
+                    barberId={barberData.id}
+                    onEdit={handleEdit}
+                    isEditing={isEditing}
+                    editData={editData}
+                    onSave={handleSave}
+                    onCancel={handleCancel}
+                    onEditDataChange={setEditData}
+                    uploadFile={uploadFile}
+                    setUploadFile={setUploadFile}
+                    isUploading={isUploading}
+                    onDataUpdate={handleAdminDataUpdate}
+                  />
+                )}
+                
+                {activeTab === 'appointments' && (
+                  <AppointmentsTab 
+                    barberData={fullBarberData}
+                    appointments={fullBarberData.appointments}
+                    barberId={fullBarberData.id}
+                    onDataUpdate={handleAdminDataUpdate}
+                    availability={fullBarberData.availability}
+                  />
+                )}
+                
+                {activeTab === 'loyalty' && (
+                  <LoyaltyTab 
+                    barberId={barberData.id}
+                    clients={loyaltyClients}
+                    isLoading={isLoyaltyLoading}
+                    onRefresh={loadLoyaltyData}
+                    shopName={barberData.profile.shopName}
+                  />
+                )}
+              </>
             )}
           </div>
         </div>

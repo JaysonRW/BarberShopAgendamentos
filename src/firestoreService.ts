@@ -126,10 +126,10 @@ export class FirestoreService {
     }
   }
 
-  // Carregar todos os dados de um barbeiro (multi-tenant)
-  static async loadBarberData(barberId: string): Promise<BarberData | null> {
+  // Carregar dados PÚBLICOS de um barbeiro (não inclui agendamentos)
+  static async loadPublicBarberData(barberId: string): Promise<BarberData | null> {
     try {
-      console.log(`📊 Carregando dados do barbeiro: ${barberId}`);
+      console.log(`📊 Carregando dados PÚBLICOS do barbeiro: ${barberId}`);
       
       const barberDoc = await db.collection('barbers').doc(barberId).get();
       
@@ -145,7 +145,7 @@ export class FirestoreService {
         return null;
       }
       
-      const [promotionsSnapshot, servicesSnapshot, gallerySnapshot, appointmentsSnapshot] = await Promise.all([
+      const [promotionsSnapshot, servicesSnapshot, gallerySnapshot] = await Promise.all([
         db.collection('barbers').doc(barberId).collection('promotions')
           .where('isActive', '==', true)
           .orderBy('createdAt', 'desc')
@@ -157,16 +157,11 @@ export class FirestoreService {
         db.collection('barbers').doc(barberId).collection('gallery')
           .orderBy('order', 'asc')
           .get(),
-        db.collection('barbers').doc(barberId).collection('appointments')
-          .orderBy('date', 'desc')
-          .limit(50)
-          .get()
       ]);
       
       const promotions: Promotion[] = promotionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Promotion));
       const services: Service[] = servicesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Service));
       const galleryImages: GalleryImage[] = gallerySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as GalleryImage));
-      const appointments: Appointment[] = appointmentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Appointment));
       
       const finalData: BarberData = {
         id: barberId,
@@ -175,14 +170,36 @@ export class FirestoreService {
         promotions,
         services,
         galleryImages,
-        appointments
+        appointments: [] // Importante: retorna vazio para a visualização pública
       };
       
       return finalData;
       
     } catch (error) {
-      console.error('Erro grave ao carregar dados do barbeiro:', error);
+      console.error('Erro grave ao carregar dados públicos do barbeiro:', error);
       throw error;
+    }
+  }
+
+  // Novo método para buscar agendamentos de forma segura (apenas para admin)
+  static async getAppointments(barberId: string): Promise<Appointment[]> {
+    const user = auth.currentUser;
+    // As regras do Firestore já protegem, mas esta é uma verificação extra no cliente.
+    if (!user || user.uid !== barberId) {
+        console.warn(`Tentativa não autorizada de ler agendamentos para ${barberId}`);
+        return []; // Retorna vazio se não estiver logado como o dono
+    }
+    try {
+        const appointmentsSnapshot = await db.collection('barbers').doc(barberId).collection('appointments')
+            .orderBy('date', 'desc')
+            .limit(100)
+            .get();
+        
+        const appointments: Appointment[] = appointmentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Appointment));
+        return appointments;
+    } catch (error) {
+        console.error('Erro ao buscar agendamentos:', error);
+        throw error; // Propaga o erro para ser tratado na UI
     }
   }
   
