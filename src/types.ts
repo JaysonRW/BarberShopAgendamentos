@@ -27,6 +27,7 @@ export interface Appointment {
   time: string;
   paymentMethod: string;
   status: 'Pendente' | 'Confirmado';
+  lembrete24henviado?: boolean; // Adicionado para rastrear o envio do lembrete de 24h
 }
 
 export interface LoyaltyClient {

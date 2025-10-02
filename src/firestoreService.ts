@@ -388,12 +388,35 @@ export class FirestoreService {
   static async updateAppointmentStatus(barberId: string, appointmentId: string, status: 'Pendente' | 'Confirmado'): Promise<boolean> {
     return this.withAuthentication(barberId, async () => {
       try {
-        await db.collection('barbers').doc(barberId).collection('appointments').doc(appointmentId).update({
-          status, updatedAt: new Date()
-        });
+        const updateData: { status: string; updatedAt: Date; lembrete24henviado?: boolean } = {
+          status,
+          updatedAt: new Date()
+        };
+        // Quando um agendamento é confirmado, preparamos o campo para o lembrete de 24h.
+        if (status === 'Confirmado') {
+          updateData.lembrete24henviado = false;
+        }
+
+        await db.collection('barbers').doc(barberId).collection('appointments').doc(appointmentId).update(updateData);
         return true;
       } catch (error) {
         console.error('Erro ao atualizar status do agendamento:', error);
+        return false;
+      }
+    });
+  }
+
+  static async markReminderAsSent(barberId: string, appointmentId: string): Promise<boolean> {
+    return this.withAuthentication(barberId, async () => {
+      try {
+        await db.collection('barbers').doc(barberId).collection('appointments').doc(appointmentId).update({
+          lembrete24henviado: true,
+          updatedAt: new Date()
+        });
+        console.log(`✅ Lembrete para agendamento ${appointmentId} marcado como enviado.`);
+        return true;
+      } catch (error) {
+        console.error('❌ Erro ao marcar lembrete como enviado:', error);
         return false;
       }
     });
