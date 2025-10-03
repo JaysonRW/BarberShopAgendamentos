@@ -680,17 +680,21 @@ export class FirestoreService {
   }
   
   static async getLoyaltyClientsForBarber(barberId: string): Promise<LoyaltyClient[]> {
-    try {
-      const snapshot = await db.collection('loyaltyClients')
-        .where('barberId', '==', barberId).get();
-      const clients = snapshot.docs.map(doc => doc.data() as LoyaltyClient);
-      clients.sort((a, b) => (b.stars || 0) - (a.stars || 0));
-      return clients;
-    } catch (error) {
-      console.error('❌ Erro ao buscar clientes de fidelidade:', error);
-      return [];
-    }
+  try {
+    const snapshot = await db.collection('loyaltyClients')
+      .where('barberId', '==', barberId)  // FILTRO CRÍTICO
+      .orderBy('points', 'desc')
+      .get();
+    
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    } as LoyaltyClient));
+  } catch (error) {
+    console.error('Erro ao carregar clientes de fidelidade:', error);
+    return [];
   }
+}
 
   static async redeemStars(barberId: string, clientWhatsapp: string, goal: number): Promise<boolean> {
     return this.withAuthentication(barberId, async () => {
