@@ -987,7 +987,7 @@ const Footer: React.FC<{ shopName: string; location: string }> = ({ shopName, lo
         <MapPinIcon className="h-5 w-5 mr-2" /> {location}
       </p>
       <p className="text-sm">
-        &copy; {new Date().getFullYear()} {shopName}. Todos os direitos reservados.
+        &copy; {new Date().getFullYear()} {shopName}. Todos os direitos reservados. Site desenvolvido por propagounegocios.com.br
       </p>
     </div>
   </footer>
