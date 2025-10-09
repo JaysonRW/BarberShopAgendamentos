@@ -3,8 +3,9 @@
 
 
 
+
 import React from 'react';
-import type { Promotion, GalleryImage, Service, Appointment, LoyaltyClient, Client, ClientStats, ClientFormData } from './types';
+import type { Promotion, GalleryImage, Service, Appointment, LoyaltyClient, Client, ClientStats, ClientFormData, Transaction, Financials } from './types';
 import { FirestoreService, BarberData } from './firestoreService';
 import { auth } from './firebaseConfig';
 import { testFirestoreWrite, testFirestoreRead } from './firebaseTest';
@@ -56,7 +57,7 @@ const useRouting = () => {
 };
 
 // Helper function to calculate financial summary from appointments
-const calculateFinancials = (appointments: (Appointment & { servicePrice?: number })[]) => {
+const calculateFinancialsFromAppointments = (appointments: (Appointment & { servicePrice?: number })[]) => {
   let confirmedTotal = 0;
   let pendingTotal = 0;
 
@@ -481,6 +482,7 @@ const MapPinIcon: React.FC<{className?: string}> = ({className = "h-5 w-5"}) => 
 const ChevronLeftIcon: React.FC<{ className?: string }> = ({ className = "h-6 w-6" }) => <Icon className={className} path="M15 19l-7-7 7-7" />;
 const ChevronRightIcon: React.FC<{ className?: string }> = ({ className = "h-6 w-6" }) => <Icon className={className} path="M5 19l7-7-7-7" />;
 const UploadIcon: React.FC<{className?: string}> = ({className = "h-5 w-5"}) => <Icon className={className} path="M4 12a1 1 0 011 1v3a1 1 0 001 1h8a1 1 0 001-1v-3a1 1 0 112 0v3a3 3 0 01-3 3H6a3 3 0 01-3-3v-3a1 1 0 011-1zm5-10a1 1 0 011 1v7.586l2.293-2.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L9 10.586V3a1 1 0 011-1z" />;
+const PlusIcon: React.FC<{ className?: string }> = ({ className = "h-5 w-5" }) => <Icon className={className} path="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" />;
 
 // Ícones específicos
 const WhatsAppIcon: React.FC<{className?: string}> = ({className = "h-5 w-5 mr-2"}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 20 20" fill="currentColor"><path d="M10.3 2.2C5.7 2.2 2 5.9 2 10.5c0 1.6.4 3.1 1.3 4.4L2 20l5.2-1.3c1.3.8 2.8 1.2 4.4 1.2 4.6 0 8.3-3.7 8.3-8.3S14.9 2.2 10.3 2.2zM10.3 18.1c-1.4 0-2.8-.4-4-1.2l-.3-.2-3 .8.8-2.9-.2-.3c-.8-1.2-1.3-2.7-1.3-4.2 0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5-2.9 6.5-6.5 6.5zm3.2-4.9c-.2-.1-1.1-.5-1.3-.6-.2-.1-.3-.1-.5.1s-.5.6-.6.7c-.1.1-.2.2-.4.1-.2 0-.8-.3-1.5-.9s-1.1-1.3-1.2-1.5c-.1-.2 0-.3.1-.4l.3-.3c.1-.1.1-.2.2-.3.1-.1 0-.3-.1-.4-.1-.1-.5-1.1-.6-1.5-.2-.4-.3-.3-.5-.3h-.4c-.2 0-.4.1-.6.3s-.7.7-.7 1.6.7 1.9 1.4 2.6c1.1 1.1 2.1 1.7 3.3 1.7.2 0 .4 0 .6-.1.6-.2 1.1-.7 1.2-1.3.1-.6.1-1.1 0-1.2-.1-.1-.3-.2-.5-.3z" /></svg>;
@@ -497,6 +499,10 @@ const GalleryIcon: React.FC<{className?: string}> = ({className = "h-5 w-5"}) =>
 const CalendarIcon: React.FC<{className?: string}> = ({className = "h-5 w-5"}) => <Icon className={className} path="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zM9 14H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2zm-8 4H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2z" />;
 const StarIcon: React.FC<{className?: string}> = ({className = "h-5 w-5"}) => <Icon className={className} path="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />;
 const UsersIcon: React.FC<{className?: string}> = ({className = "h-5 w-5"}) => <Icon className={className} path="M9 6a3 3 0 11-6 0 3 3 0 016 0zm8 0a3 3 0 11-6 0 3 3 0 016 0zm-4 6a3 3 0 11-6 0 3 3 0 016 0zM5 20a2 2 0 01-2-2v-6a2 2 0 012-2h10a2 2 0 012 2v6a2 2 0 01-2 2H5z" />;
+const ChartBarIcon: React.FC<{className?: string}> = ({className = "h-5 w-5"}) => <Icon className={className} path="M3 12v7a2 2 0 002 2h10a2 2 0 002-2v-7a2 2 0 00-2-2H5a2 2 0 00-2 2zm2-2a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H7a2 2 0 01-2-2v-2zm10-4a2 2 0 00-2-2h-2a2 2 0 00-2 2v12a2 2 0 002 2h2a2 2 0 002-2V6z" />;
+const TrendingUpIcon: React.FC<{className?: string}> = ({className = "h-6 w-6"}) => <Icon className={className} path="M13 7h8v8h-2V9.414l-6.293 6.293-4-4L1 19.414 2.414 18l7.293-7.293 4 4L19.586 9H15V7z" />;
+const ArrowSmDownIcon: React.FC<{className?: string}> = ({className = "h-5 w-5"}) => <Icon className={className} path="M10 14l-5-5h10l-5 5z" />;
+const ArrowSmUpIcon: React.FC<{className?: string}> = ({className = "h-5 w-5"}) => <Icon className={className} path="M10 6l5 5H5l5-5z" />;
 
 // === COMPONENTES ===
 
@@ -1267,7 +1273,7 @@ const AdminPanel: React.FC<{
   onLogout: () => void;
   onDataUpdate: () => void;
 }> = ({ barberData, onLogout, onDataUpdate }) => {
-  const [activeTab, setActiveTab] = React.useState<'dashboard' | 'profile' | 'visuals' | 'services' | 'promotions' | 'gallery' | 'appointments' | 'loyalty' | 'clients'>('dashboard');
+  const [activeTab, setActiveTab] = React.useState<'dashboard' | 'profile' | 'visuals' | 'services' | 'promotions' | 'gallery' | 'appointments' | 'loyalty' | 'clients' | 'financials'>('dashboard');
   const [isEditing, setIsEditing] = React.useState(false);
   const [editData, setEditData] = React.useState<any>({});
   
@@ -1338,7 +1344,7 @@ const AdminPanel: React.FC<{
   }, [onDataUpdate, loadAppointments, loadLoyaltyData, loadClients]);
 
   const financialSummary = React.useMemo(() => {
-    return calculateFinancials(appointments);
+    return calculateFinancialsFromAppointments(appointments);
   }, [appointments]);
 
 
@@ -1458,6 +1464,7 @@ const AdminPanel: React.FC<{
                 { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
                 { id: 'profile', label: 'Perfil da Barbearia', icon: <ShopIcon /> },
                 { id: 'visuals', label: 'Personalização Visual', icon: <VisualsIcon /> },
+                { id: 'financials', label: 'Financeiro', icon: <ChartBarIcon /> },
                 { id: 'clients', label: 'Clientes', icon: <UsersIcon /> },
                 { id: 'services', label: 'Serviços', icon: <ScissorsIcon /> },
                 { id: 'promotions', label: 'Promoções', icon: <TagIcon /> },
@@ -1516,6 +1523,15 @@ const AdminPanel: React.FC<{
                     onDataUpdate={handleAdminDataUpdate}
                   />
                 )}
+
+                {activeTab === 'financials' && (
+                  <FinancialsTab
+                    barberId={barberData.id}
+                    appointments={appointments}
+                    onDataUpdate={handleAdminDataUpdate}
+                  />
+                )}
+
                  {activeTab === 'clients' && (
                   <ClientsTab
                     barberId={barberData.id}
@@ -3042,5 +3058,157 @@ const VisualsTab: React.FC<{
     );
 };
 
+// --- NOVA ABA FINANCEIRA E COMPONENTES ---
 
-export default App;
+const ExpenseModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (expenseData: Omit<Transaction, 'id' | 'barberId' | 'createdAt' | 'type'>) => Promise<void>;
+  isLoading: boolean;
+}> = ({ isOpen, onClose, onSave, isLoading }) => {
+  const [formData, setFormData] = React.useState({
+    description: '',
+    amount: '',
+    category: 'Outros',
+    date: new Date().toISOString().split('T')[0],
+  });
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.description || !formData.amount || !formData.date) {
+      alert('Todos os campos são obrigatórios.');
+      return;
+    }
+    await onSave({ ...formData, amount: parseFloat(formData.amount) });
+    setFormData({ description: '', amount: '', category: 'Outros', date: new Date().toISOString().split('T')[0] });
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
+      <div className="bg-gray-800 p-8 rounded-xl shadow-2xl text-white w-full max-w-lg">
+        <h2 className="text-3xl font-bold text-center mb-6">Nova Despesa</h2>
+        <form onSubmit={handleSave} className="space-y-4">
+          <input type="text" name="description" value={formData.description} onChange={handleChange} placeholder="Descrição (ex: Aluguel, Compra de Produtos)" required className="w-full p-3 bg-gray-700 rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-primary"/>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <input type="number" name="amount" value={formData.amount} onChange={handleChange} placeholder="Valor (R$)" required className="w-full p-3 bg-gray-700 rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-primary"/>
+            <input type="date" name="date" value={formData.date} onChange={handleChange} required className="w-full p-3 bg-gray-700 rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-primary"/>
+          </div>
+          <select name="category" value={formData.category} onChange={handleChange} className="w-full p-3 bg-gray-700 rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-primary">
+            <option>Aluguel</option>
+            <option>Produtos</option>
+            <option>Marketing</option>
+            <option>Salários</option>
+            <option>Contas (Água, Luz, etc.)</option>
+            <option>Outros</option>
+          </select>
+          <div className="flex flex-col md:flex-row gap-4 pt-4">
+            <button type="submit" disabled={isLoading} className="w-full md:w-auto flex-1 bg-gradient-to-r from-purple-600 to-blue-600 font-bold py-3 px-6 rounded-lg uppercase hover:opacity-90 transition duration-300 disabled:bg-gray-500">
+              {isLoading ? 'Salvando...' : 'Salvar Despesa'}
+            </button>
+            <button type="button" onClick={onClose} className="w-full md:w-auto bg-gray-600 font-bold py-3 px-6 rounded-lg uppercase hover:bg-gray-500 transition duration-300">
+              Cancelar
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+
+const FinancialsTab: React.FC<{
+  barberId: string;
+  appointments: Appointment[];
+  onDataUpdate: () => void;
+}> = ({ barberId, appointments, onDataUpdate }) => {
+  type Period = 'week' | 'month' | 'quarter' | 'year';
+  const [period, setPeriod] = React.useState<Period>('month');
+  const [transactions, setTransactions] = React.useState<Transaction[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [isModalOpen, setIsModalOpen] = React.useState(false);
+  const [isSaving, setIsSaving] = React.useState(false);
+  const [transactionFilter, setTransactionFilter] = React.useState<'Todas' | 'Receitas' | 'Pendentes' | 'Despesas'>('Todas');
+
+  const { startDate, endDate } = React.useMemo(() => {
+    const end = new Date();
+    let start = new Date();
+    switch (period) {
+      case 'week':
+        start.setDate(end.getDate() - 6);
+        break;
+      case 'month':
+        start.setDate(1);
+        break;
+      case 'quarter':
+        start.setMonth(Math.floor(start.getMonth() / 3) * 3, 1);
+        break;
+      case 'year':
+        start.setMonth(0, 1);
+        break;
+    }
+    start.setHours(0, 0, 0, 0);
+    return { startDate: start, endDate: end };
+  }, [period]);
+
+  React.useEffect(() => {
+    const fetchTransactions = async () => {
+      setIsLoading(true);
+      try {
+        const data = await FirestoreService.getTransactions(barberId, startDate, endDate);
+        setTransactions(data);
+      } catch (error) {
+        console.error("Erro ao buscar transações:", error);
+        alert("Não foi possível carregar os dados financeiros. Verifique o console para erros de índice do Firestore.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchTransactions();
+  }, [barberId, startDate, endDate]);
+
+  const financials: Financials = React.useMemo(() => {
+    const { pendingTotal } = calculateFinancialsFromAppointments(appointments);
+    const summary: Financials = {
+      totalRevenue: 0, totalExpenses: 0, netProfit: 0, profitMargin: 0,
+      revenueByPaymentMethod: {}, flow: [], pendingRevenue: pendingTotal
+    };
+
+    transactions.forEach(t => {
+      if (t.type === 'receita') {
+        summary.totalRevenue += t.amount;
+        if (t.paymentMethod) {
+          summary.revenueByPaymentMethod[t.paymentMethod] = (summary.revenueByPaymentMethod[t.paymentMethod] || 0) + t.amount;
+        }
+      } else {
+        summary.totalExpenses += t.amount;
+      }
+    });
+
+    summary.netProfit = summary.totalRevenue - summary.totalExpenses;
+    summary.profitMargin = summary.totalRevenue > 0 ? (summary.netProfit / summary.totalRevenue) * 100 : 0;
+    return summary;
+  }, [transactions, appointments]);
+
+  const handleSaveExpense = async (expenseData: Omit<Transaction, 'id' | 'barberId' | 'createdAt' | 'type'>) => {
+    setIsSaving(true);
+    try {
+      await FirestoreService.addTransaction(barberId, { ...expenseData, type: 'despesa' });
+      alert('Despesa adicionada com sucesso!');
+      onDataUpdate(); // Isso irá recarregar todos os dados, incluindo transações
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error('Erro ao salvar despesa:', error);
+      alert('Ocorreu um erro ao salvar a despesa.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+  
+  const
