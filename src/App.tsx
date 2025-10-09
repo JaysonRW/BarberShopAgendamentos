@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useMemo, ChangeEvent, useEffect, useRef } from 'react';
 import type { Promotion, GalleryImage, Service, Appointment, LoyaltyClient, Client, ClientStats, ClientFormData } from './types';
 import { FirestoreService, BarberData } from './firestoreService';
@@ -125,6 +126,58 @@ const UnauthorizedAccess: React.FC<{
   </div>
 );
 
+// Componente para aplicar estilos do tema dinamicamente
+const ThemeStyles: React.FC<{ theme?: { primaryColor: string; secondaryColor: string } }> = ({ theme }) => {
+  const defaultTheme = {
+    primaryColor: '#DC2626', // red-600
+    secondaryColor: '#7F1D1D', // red-900
+  };
+
+  const currentTheme = theme && theme.primaryColor ? theme : defaultTheme;
+  const { primaryColor, secondaryColor } = currentTheme;
+
+  // Helper para escurecer uma cor hexadecimal
+  const darkenColor = (hex: string, percent: number) => {
+    hex = hex.replace(/^#/, '');
+    const num = parseInt(hex, 16);
+    let r = (num >> 16) + percent;
+    if (r > 255) r = 255;
+    else if (r < 0) r = 0;
+    let b = ((num >> 8) & 0x00FF) + percent;
+    if (b > 255) b = 255;
+    else if (b < 0) b = 0;
+    let g = (num & 0x0000FF) + percent;
+    if (g > 255) g = 255;
+    else if (g < 0) g = 0;
+    return `#${(g | (b << 8) | (r << 16)).toString(16).padStart(6, '0')}`;
+  };
+  
+  const primaryHover = darkenColor(primaryColor, -20);
+  const effectiveSecondaryColor = secondaryColor || primaryHover;
+
+  const css = `
+    :root {
+      --color-primary: ${primaryColor};
+      --color-primary-hover: ${primaryHover};
+      --color-secondary: ${effectiveSecondaryColor};
+    }
+    .bg-primary { background-color: var(--color-primary); }
+    .hover\\:bg-primary-dark:hover { background-color: var(--color-primary-hover); }
+    .text-primary { color: var(--color-primary); }
+    .border-primary { border-color: var(--color-primary); }
+    .hover\\:bg-primary:hover { background-color: var(--color-primary); }
+    .ring-primary:focus {
+      --tw-ring-color: var(--color-primary);
+      --tw-ring-opacity: 1;
+      box-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);
+    }
+    .bg-gradient-primary {
+      background-image: linear-gradient(to right, var(--color-primary), var(--color-secondary));
+    }
+  `;
+
+  return <style>{css}</style>;
+};
 
 // === COMPONENTE APP PRINCIPAL REATORADO ===
 const App: React.FC = () => {
@@ -351,6 +404,7 @@ const App: React.FC = () => {
 
   return (
     <div className="bg-white">
+      <ThemeStyles theme={barberData.profile.theme} />
       <DebugPanel 
         user={user}
         barberData={barberData}
@@ -410,33 +464,35 @@ const scrollToSection = (sectionId: string) => {
 // Função para obter slug da URL agora está em config.ts
 
 // === ÍCONES SVG (reutilizáveis) ===
-const Icon = ({ path, className = "h-5 w-5" }: { path: string, className?: string }) => (
+// FIX: Add explicit React.FC types to icon components for better type safety and to resolve potential JSX intrinsic element errors.
+const Icon: React.FC<{ path: string, className?: string }> = ({ path, className = "h-5 w-5" }) => (
   <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 20 20" fill="currentColor">
     <path fillRule="evenodd" d={path} clipRule="evenodd" />
   </svg>
 );
 
-const ClockIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.414-1.415L11 9.586V6z" />;
-const CreditCardIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V8a2 2 0 00-2-2h-5L9 4H4zm2 2h2v2H6V6zm4 0h2v2h-2V6zM6 9h2v2H6V9zm4 0h2v2h-2V9z" />;
-const MapPinIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M5.05 4.05a7 7 0 119.9 9.9L10 20l-4.95-5.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" />;
-const ChevronLeftIcon = ({ className = "h-6 w-6" }) => <Icon className={className} path="M15 19l-7-7 7-7" />;
-const ChevronRightIcon = ({ className = "h-6 w-6" }) => <Icon className={className} path="M5 19l7-7-7-7" />;
-const UploadIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M4 12a1 1 0 011 1v3a1 1 0 001 1h8a1 1 0 001-1v-3a1 1 0 112 0v3a3 3 0 01-3 3H6a3 3 0 01-3-3v-3a1 1 0 011-1zm5-10a1 1 0 011 1v7.586l2.293-2.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L9 10.586V3a1 1 0 011-1z" />;
+const ClockIcon: React.FC<{className?: string}> = ({className = "h-5 w-5"}) => <Icon className={className} path="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.414-1.415L11 9.586V6z" />;
+const CreditCardIcon: React.FC<{className?: string}> = ({className = "h-5 w-5"}) => <Icon className={className} path="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V8a2 2 0 00-2-2h-5L9 4H4zm2 2h2v2H6V6zm4 0h2v2h-2V6zM6 9h2v2H6V9zm4 0h2v2h-2V9z" />;
+const MapPinIcon: React.FC<{className?: string}> = ({className = "h-5 w-5"}) => <Icon className={className} path="M5.05 4.05a7 7 0 119.9 9.9L10 20l-4.95-5.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" />;
+const ChevronLeftIcon: React.FC<{ className?: string }> = ({ className = "h-6 w-6" }) => <Icon className={className} path="M15 19l-7-7 7-7" />;
+const ChevronRightIcon: React.FC<{ className?: string }> = ({ className = "h-6 w-6" }) => <Icon className={className} path="M5 19l7-7-7-7" />;
+const UploadIcon: React.FC<{className?: string}> = ({className = "h-5 w-5"}) => <Icon className={className} path="M4 12a1 1 0 011 1v3a1 1 0 001 1h8a1 1 0 001-1v-3a1 1 0 112 0v3a3 3 0 01-3 3H6a3 3 0 01-3-3v-3a1 1 0 011-1zm5-10a1 1 0 011 1v7.586l2.293-2.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L9 10.586V3a1 1 0 011-1z" />;
 
 // Ícones específicos
-const WhatsAppIcon = ({className = "h-5 w-5 mr-2"}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 20 20" fill="currentColor"><path d="M10.3 2.2C5.7 2.2 2 5.9 2 10.5c0 1.6.4 3.1 1.3 4.4L2 20l5.2-1.3c1.3.8 2.8 1.2 4.4 1.2 4.6 0 8.3-3.7 8.3-8.3S14.9 2.2 10.3 2.2zM10.3 18.1c-1.4 0-2.8-.4-4-1.2l-.3-.2-3 .8.8-2.9-.2-.3c-.8-1.2-1.3-2.7-1.3-4.2 0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5-2.9 6.5-6.5 6.5zm3.2-4.9c-.2-.1-1.1-.5-1.3-.6-.2-.1-.3-.1-.5.1s-.5.6-.6.7c-.1.1-.2.2-.4.1-.2 0-.8-.3-1.5-.9s-1.1-1.3-1.2-1.5c-.1-.2 0-.3.1-.4l.3-.3c.1-.1.1-.2.2-.3.1-.1 0-.3-.1-.4-.1-.1-.5-1.1-.6-1.5-.2-.4-.3-.3-.5-.3h-.4c-.2 0-.4.1-.6.3s-.7.7-.7 1.6.7 1.9 1.4 2.6c1.1 1.1 2.1 1.7 3.3 1.7.2 0 .4 0 .6-.1.6-.2 1.1-.7 1.2-1.3.1-.6.1-1.1 0-1.2-.1-.1-.3-.2-.5-.3z" /></svg>;
-const LogoutIcon = ({className = "h-5 w-5 mr-2"}) => <Icon className={className} path="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" />;
-const UserIcon = ({className = "h-6 w-6"}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>;
+const WhatsAppIcon: React.FC<{className?: string}> = ({className = "h-5 w-5 mr-2"}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 20 20" fill="currentColor"><path d="M10.3 2.2C5.7 2.2 2 5.9 2 10.5c0 1.6.4 3.1 1.3 4.4L2 20l5.2-1.3c1.3.8 2.8 1.2 4.4 1.2 4.6 0 8.3-3.7 8.3-8.3S14.9 2.2 10.3 2.2zM10.3 18.1c-1.4 0-2.8-.4-4-1.2l-.3-.2-3 .8.8-2.9-.2-.3c-.8-1.2-1.3-2.7-1.3-4.2 0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5-2.9 6.5-6.5 6.5zm3.2-4.9c-.2-.1-1.1-.5-1.3-.6-.2-.1-.3-.1-.5.1s-.5.6-.6.7c-.1.1-.2.2-.4.1-.2 0-.8-.3-1.5-.9s-1.1-1.3-1.2-1.5c-.1-.2 0-.3.1-.4l.3-.3c.1-.1.1-.2.2-.3.1-.1 0-.3-.1-.4-.1-.1-.5-1.1-.6-1.5-.2-.4-.3-.3-.5-.3h-.4c-.2 0-.4.1-.6.3s-.7.7-.7 1.6.7 1.9 1.4 2.6c1.1 1.1 2.1 1.7 3.3 1.7.2 0 .4 0 .6-.1.6-.2 1.1-.7 1.2-1.3.1-.6.1-1.1 0-1.2-.1-.1-.3-.2-.5-.3z" /></svg>;
+const LogoutIcon: React.FC<{className?: string}> = ({className = "h-5 w-5 mr-2"}) => <Icon className={className} path="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" />;
+const UserIcon: React.FC<{className?: string}> = ({className = "h-6 w-6"}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>;
+const VisualsIcon: React.FC<{ className?: string }> = ({ className = "h-5 w-5" }) => <Icon className={className} path="M10 3.22l-.61-.6a10 10 0 00-12.78 12.78l.61.61A10 10 0 0010 3.22zM17.39 6.61a10 10 0 00-10.78-3.39l-3.22 3.22a10 10 0 003.39 10.78l3.22-3.22A10 10 0 0017.39 6.61zM10 12a2 2 0 110-4 2 2 0 010 4z" />;
 
 // Ícones do Painel Admin - Tema Barbearia Moderna
-const DashboardIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />;
-const ShopIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73v3.72z" />;
-const ScissorsIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M9.64 7.64c.23-.5.36-1.05.36-1.64 0-2.21-1.79-4-4-4S2 3.79 2 6s1.79 4 4 4c.59 0 1.14-.13 1.64-.36L10 12l-2.36 2.36C7.14 14.13 6.59 14 6 14c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4c0-.59-.13-1.14-.36-1.64L12 14l7 7h3v-1L9.64 7.64zM6 8c-1.1 0-2-.89-2-2s.9-2 2-2 2 .89 2 2-.9 2-2 2zm0 12c-1.1 0-2-.89-2-2s.9-2 2-2 2 .89 2 2-.9 2-2 2zm6-7.5c-.28 0-.5-.22-.5-.5s.22-.5.5-.5.5.22.5.5-.22.5-.5.5zM19 3l-6 6 2 2 7-7V3z" />;
-const TagIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z" />;
-const GalleryIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M22 16V4c0-1.1-.9-2-2-2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2zm-11-4l2.03 2.71L16 11l4 5H8l3-4zM2 6v14c0 1.1.9 2 2 2h14v-2H4V6H2z" />;
-const CalendarIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zM9 14H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2zm-8 4H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2z" />;
-const StarIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />;
-const UsersIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M9 6a3 3 0 11-6 0 3 3 0 016 0zm8 0a3 3 0 11-6 0 3 3 0 016 0zm-4 6a3 3 0 11-6 0 3 3 0 016 0zM5 20a2 2 0 01-2-2v-6a2 2 0 012-2h10a2 2 0 012 2v6a2 2 0 01-2 2H5z" />;
+const DashboardIcon: React.FC<{className?: string}> = ({className = "h-5 w-5"}) => <Icon className={className} path="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />;
+const ShopIcon: React.FC<{className?: string}> = ({className = "h-5 w-5"}) => <Icon className={className} path="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73v3.72z" />;
+const ScissorsIcon: React.FC<{className?: string}> = ({className = "h-5 w-5"}) => <Icon className={className} path="M9.64 7.64c.23-.5.36-1.05.36-1.64 0-2.21-1.79-4-4-4S2 3.79 2 6s1.79 4 4 4c.59 0 1.14-.13 1.64-.36L10 12l-2.36 2.36C7.14 14.13 6.59 14 6 14c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4c0-.59-.13-1.14-.36-1.64L12 14l7 7h3v-1L9.64 7.64zM6 8c-1.1 0-2-.89-2-2s.9-2 2-2 2 .89 2 2-.9 2-2 2zm0 12c-1.1 0-2-.89-2-2s.9-2 2-2 2 .89 2 2-.9 2-2 2zm6-7.5c-.28 0-.5-.22-.5-.5s.22-.5.5-.5.5.22.5.5-.22.5-.5.5zM19 3l-6 6 2 2 7-7V3z" />;
+const TagIcon: React.FC<{className?: string}> = ({className = "h-5 w-5"}) => <Icon className={className} path="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z" />;
+const GalleryIcon: React.FC<{className?: string}> = ({className = "h-5 w-5"}) => <Icon className={className} path="M22 16V4c0-1.1-.9-2-2-2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2zm-11-4l2.03 2.71L16 11l4 5H8l3-4zM2 6v14c0 1.1.9 2 2 2h14v-2H4V6H2z" />;
+const CalendarIcon: React.FC<{className?: string}> = ({className = "h-5 w-5"}) => <Icon className={className} path="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zM9 14H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2zm-8 4H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2z" />;
+const StarIcon: React.FC<{className?: string}> = ({className = "h-5 w-5"}) => <Icon className={className} path="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />;
+const UsersIcon: React.FC<{className?: string}> = ({className = "h-5 w-5"}) => <Icon className={className} path="M9 6a3 3 0 11-6 0 3 3 0 016 0zm8 0a3 3 0 11-6 0 3 3 0 016 0zm-4 6a3 3 0 11-6 0 3 3 0 016 0zM5 20a2 2 0 01-2-2v-6a2 2 0 012-2h10a2 2 0 012 2v6a2 2 0 01-2 2H5z" />;
 
 // === COMPONENTES ===
 
@@ -444,11 +500,11 @@ const UsersIcon = ({className = "h-5 w-5"}) => <Icon className={className} path=
 const LoadingSpinner = ({ message = 'Carregando...', progress }: { message?: string, progress?: number }) => (
   <div className="fixed inset-0 bg-gray-900 bg-opacity-80 flex items-center justify-center z-50">
     <div className="flex flex-col items-center">
-      <div className="h-16 w-16 animate-spin rounded-full border-4 border-dashed border-red-600"></div>
+      <div className="h-16 w-16 animate-spin rounded-full border-4 border-dashed border-primary"></div>
       <p className="text-white mt-4">{message}</p>
       {progress !== undefined && (
         <div className="w-48 bg-gray-600 rounded-full h-2.5 mt-4">
-          <div className="bg-red-600 h-2.5 rounded-full transition-all duration-300" style={{ width: `${progress}%` }}></div>
+          <div className="bg-primary h-2.5 rounded-full transition-all duration-300" style={{ width: `${progress}%` }}></div>
         </div>
       )}
     </div>
@@ -471,7 +527,7 @@ const ConnectionError = ({ message }: { message: string }) => (
     <p className="text-gray-300 max-w-md">{message}</p>
     <button
       onClick={() => window.location.reload()}
-      className="mt-8 bg-red-600 text-white font-bold py-3 px-8 rounded-lg text-lg uppercase hover:bg-red-700 transition duration-300"
+      className="mt-8 bg-primary text-white font-bold py-3 px-8 rounded-lg text-lg uppercase hover:bg-primary-dark transition duration-300"
     >
       Tentar Novamente
     </button>
@@ -621,26 +677,26 @@ const Header: React.FC<{ onAdminClick: () => void; logoUrl: string; shopName: st
       <nav className="hidden md:flex items-center space-x-6">
         <button 
           onClick={() => scrollToSection('promocoes')} 
-          className="hover:text-red-500 transition duration-300"
+          className="hover:text-primary transition duration-300"
         >
           Promoções
         </button>
         <button 
           onClick={() => scrollToSection('galeria')} 
-          className="hover:text-red-500 transition duration-300"
+          className="hover:text-primary transition duration-300"
         >
           Galeria
         </button>
         <button 
           onClick={() => scrollToSection('agendamento')} 
-          className="bg-red-600 px-4 py-2 rounded-md hover:bg-red-700 transition duration-300"
+          className="bg-primary px-4 py-2 rounded-md hover:bg-primary-dark transition duration-300"
         >
           AGENDAR AGORA
         </button>
       </nav>
       <button 
         onClick={onAdminClick} 
-        className="text-sm border border-red-600 px-3 py-2 rounded-md hover:bg-red-600 transition duration-300"
+        className="text-sm border border-primary px-3 py-2 rounded-md hover:bg-primary transition duration-300"
       >
         Área do Barbeiro
       </button>
@@ -659,7 +715,7 @@ const Hero: React.FC<{ shopName: string }> = ({ shopName }) => (
       </p>
       <button 
         onClick={() => scrollToSection('agendamento')} 
-        className="mt-8 inline-block bg-red-600 text-white font-bold py-3 px-8 rounded-lg text-lg uppercase hover:bg-red-700 transform hover:scale-105 transition duration-300"
+        className="mt-8 inline-block bg-primary text-white font-bold py-3 px-8 rounded-lg text-lg uppercase hover:bg-primary-dark transform hover:scale-105 transition duration-300"
       >
         Agendar Horário
       </button>
@@ -672,11 +728,11 @@ const Promotions: React.FC<{ promotions: Promotion[] }> = ({ promotions }) => (
   <section id="promocoes" className="py-20 bg-gray-100">
     <div className="container mx-auto px-6">
       <h2 className="text-4xl font-bold text-center mb-12 uppercase text-gray-800">
-        Nossas <span className="text-red-600">Promoções</span>
+        Nossas <span className="text-primary">Promoções</span>
       </h2>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {promotions.length > 0 ? promotions.map(promo => (
-          <div key={promo.id} className="bg-white rounded-lg shadow-xl p-8 transform hover:-translate-y-2 transition duration-300 border-l-4 border-red-600">
+          <div key={promo.id} className="bg-white rounded-lg shadow-xl p-8 transform hover:-translate-y-2 transition duration-300 border-l-4 border-primary">
             <h3 className="text-2xl font-bold text-gray-900">{promo.title}</h3>
             <p className="mt-4 text-gray-600">{promo.description}</p>
           </div>
@@ -693,7 +749,7 @@ const Gallery: React.FC<{ images: GalleryImage[] }> = ({ images }) => (
   <section id="galeria" className="py-20 bg-gray-900">
     <div className="container mx-auto px-6">
       <h2 className="text-4xl font-bold text-center mb-12 uppercase text-white">
-        Nossos <span className="text-red-600">Trabalhos</span>
+        Nossos <span className="text-primary">Trabalhos</span>
       </h2>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {images.length > 0 ? images.map(img => (
@@ -826,7 +882,7 @@ const BookingForm: React.FC<{
             <p className="mb-4">Sua solicitação foi enviada para o barbeiro. Em breve você receberá a confirmação.</p>
             <button 
               onClick={() => setShowSuccess(false)} 
-              className="bg-red-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-red-700 transition duration-300"
+              className="bg-primary text-white font-bold py-2 px-6 rounded-lg hover:bg-primary-dark transition duration-300"
             >
               Fazer Novo Agendamento
             </button>
@@ -840,7 +896,7 @@ const BookingForm: React.FC<{
     <section id="agendamento" className="py-20 bg-gray-100">
       <div className="container mx-auto px-6">
         <h2 className="text-4xl font-bold text-center mb-12 uppercase text-gray-800">
-          Agende seu <span className="text-red-600">Horário</span>
+          Agende seu <span className="text-primary">Horário</span>
         </h2>
         
         <div className="max-w-3xl mx-auto bg-white p-8 rounded-lg shadow-xl space-y-6">
@@ -858,7 +914,7 @@ const BookingForm: React.FC<{
                   onClick={() => handleInputChange('serviceId', service.id)}
                   className={`p-3 border rounded-lg text-center transition duration-300 text-sm font-medium ${
                     formData.serviceId === service.id 
-                      ? 'bg-red-600 text-white shadow-md' 
+                      ? 'bg-primary text-white shadow-md' 
                       : 'bg-gray-100 text-gray-700 hover:bg-red-200'
                   }`}
                 >
@@ -882,7 +938,7 @@ const BookingForm: React.FC<{
                   onClick={() => handleInputChange('date', date)}
                   className={`p-3 border rounded-lg text-center transition duration-300 ${
                     formData.date === date 
-                      ? 'bg-red-600 text-white shadow-md' 
+                      ? 'bg-primary text-white shadow-md' 
                       : 'bg-gray-100 text-gray-700 hover:bg-red-200'
                   }`}
                 >
@@ -906,7 +962,7 @@ const BookingForm: React.FC<{
                     onClick={() => handleInputChange('time', time)}
                     className={`p-3 border rounded-lg transition duration-300 ${
                       formData.time === time 
-                        ? 'bg-red-600 text-white shadow-md' 
+                        ? 'bg-primary text-white shadow-md' 
                         : 'bg-gray-100 text-gray-700 hover:bg-red-200'
                     }`}
                   >
@@ -926,7 +982,7 @@ const BookingForm: React.FC<{
                 value={formData.clientName}
                 onChange={e => handleInputChange('clientName', e.target.value)}
                 placeholder="Seu nome completo" 
-                className="w-full px-4 py-3 bg-gray-100 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-gray-900" 
+                className="w-full px-4 py-3 bg-gray-100 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 ring-primary text-gray-900" 
                 required
               />
             </div>
@@ -937,7 +993,7 @@ const BookingForm: React.FC<{
                 value={formData.clientWhatsapp}
                 onChange={e => handleInputChange('clientWhatsapp', e.target.value)}
                 placeholder="Ex: 5511999998888" 
-                className="w-full px-4 py-3 bg-gray-100 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-gray-900" 
+                className="w-full px-4 py-3 bg-gray-100 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 ring-primary text-gray-900" 
                 required
               />
             </div>
@@ -956,7 +1012,7 @@ const BookingForm: React.FC<{
                   onClick={() => handleInputChange('paymentMethod', method)}
                   className={`p-3 border rounded-lg text-center transition duration-300 text-sm font-medium ${
                     formData.paymentMethod === method 
-                      ? 'bg-red-600 text-white shadow-md' 
+                      ? 'bg-primary text-white shadow-md' 
                       : 'bg-gray-100 text-gray-700 hover:bg-red-200'
                   }`}
                 >
@@ -969,7 +1025,7 @@ const BookingForm: React.FC<{
           <button 
             onClick={handleSubmit}
             disabled={isSubmitting || !formData.clientName || !formData.serviceId || !formData.date || !formData.time}
-            className="w-full bg-red-600 text-white font-bold py-4 px-6 rounded-lg text-lg uppercase hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+            className="w-full bg-primary text-white font-bold py-4 px-6 rounded-lg text-lg uppercase hover:bg-primary-dark disabled:bg-gray-400 disabled:cursor-not-allowed transition duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
           >
             {isSubmitting ? 'Enviando...' : 'Solicitar Agendamento'}
           </button>
@@ -1191,7 +1247,7 @@ const AdminPanel: React.FC<{
   onLogout: () => void;
   onDataUpdate: () => void;
 }> = ({ barberData, onLogout, onDataUpdate }) => {
-  const [activeTab, setActiveTab] = useState<'profile' | 'dashboard' | 'services' | 'promotions' | 'gallery' | 'appointments' | 'loyalty' | 'clients'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'profile' | 'visuals' | 'services' | 'promotions' | 'gallery' | 'appointments' | 'loyalty' | 'clients'>('dashboard');
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<any>({});
   
@@ -1355,6 +1411,7 @@ const AdminPanel: React.FC<{
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
+      <ThemeStyles theme={barberData.profile.theme} />
       {isUploading && <LoadingSpinner message="Salvando dados..." progress={uploadProgress} />}
       <header className="bg-gray-800 border-b border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -1380,6 +1437,7 @@ const AdminPanel: React.FC<{
               {[
                 { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
                 { id: 'profile', label: 'Perfil da Barbearia', icon: <ShopIcon /> },
+                { id: 'visuals', label: 'Personalização Visual', icon: <VisualsIcon /> },
                 { id: 'clients', label: 'Clientes', icon: <UsersIcon /> },
                 { id: 'services', label: 'Serviços', icon: <ScissorsIcon /> },
                 { id: 'promotions', label: 'Promoções', icon: <TagIcon /> },
@@ -1392,7 +1450,7 @@ const AdminPanel: React.FC<{
                   onClick={() => setActiveTab(tab.id as any)}
                   className={`w-full flex items-center text-left px-4 py-3 rounded-lg transition duration-200 ${
                     activeTab === tab.id 
-                      ? 'bg-red-600 text-white' 
+                      ? 'bg-primary text-white' 
                       : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
                   }`}
                 >
@@ -1429,6 +1487,13 @@ const AdminPanel: React.FC<{
                     uploadFile={uploadFile}
                     setUploadFile={setUploadFile}
                     isUploading={isUploading}
+                  />
+                )}
+                
+                {activeTab === 'visuals' && (
+                  <VisualsTab
+                    barberData={barberData}
+                    onDataUpdate={handleAdminDataUpdate}
                   />
                 )}
                  {activeTab === 'clients' && (
@@ -1795,7 +1860,7 @@ const ServicesTab: React.FC<{
       {services.map(service => (
         <div key={service.id} className="bg-gray-800 rounded-lg p-4">
           <h3 className="text-lg font-semibold">{service.name}</h3>
-          <p className="text-2xl font-bold text-red-500">R$ {service.price.toFixed(2)}</p>
+          <p className="text-2xl font-bold text-primary">R$ {service.price.toFixed(2)}</p>
           <div className="mt-4 flex space-x-2">
             <button
               onClick={() => onEdit('services', service)}
@@ -1894,7 +1959,7 @@ const PromotionsTab: React.FC<{
 
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {promotions.map(promotion => (
-        <div key={promotion.id} className="bg-gray-800 rounded-lg p-4 border-l-4 border-red-600">
+        <div key={promotion.id} className="bg-gray-800 rounded-lg p-4 border-l-4 border-primary">
           <h3 className="text-lg font-semibold">{promotion.title}</h3>
           <p className="text-gray-300 mt-2">{promotion.description}</p>
           <div className="mt-4 flex space-x-2">
@@ -2191,8 +2256,8 @@ const AppointmentsTab: React.FC<{
             </button>
           )}
           <div className="flex bg-gray-700 p-1 rounded-lg">
-            <button onClick={() => setView('list')} className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${view === 'list' ? 'bg-red-600 text-white' : 'text-gray-300 hover:bg-gray-600'}`}>Lista</button>
-            <button onClick={() => setView('calendar')} className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${view === 'calendar' ? 'bg-red-600 text-white' : 'text-gray-300 hover:bg-gray-600'}`}>Calendário</button>
+            <button onClick={() => setView('list')} className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${view === 'list' ? 'bg-primary text-white' : 'text-gray-300 hover:bg-gray-600'}`}>Lista</button>
+            <button onClick={() => setView('calendar')} className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${view === 'calendar' ? 'bg-primary text-white' : 'text-gray-300 hover:bg-gray-600'}`}>Calendário</button>
           </div>
         </div>
       </div>
@@ -2202,7 +2267,7 @@ const AppointmentsTab: React.FC<{
           <div className="flex justify-start items-center mb-6 gap-2 border-b border-gray-700 pb-4">
             <h3 className="text-lg font-semibold mr-4">Filtrar por status:</h3>
             {(['Todos', 'Pendente', 'Confirmado'] as const).map(f => (
-              <button key={f} onClick={() => setFilter(f)} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === f ? 'bg-red-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>
+              <button key={f} onClick={() => setFilter(f)} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === f ? 'bg-primary text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>
                 {f}
               </button>
             ))}
@@ -2317,7 +2382,7 @@ const AppointmentsTab: React.FC<{
               return (
                 <button key={dayNumber} onClick={() => handleDateClick(dayNumber)}
                   className={`flex flex-col items-center justify-center h-20 p-2 rounded-lg transition-colors text-white text-lg ${
-                    selectedDate === dateString ? 'bg-red-600' : isToday ? 'bg-gray-600' : 'bg-gray-700 hover:bg-gray-600'
+                    selectedDate === dateString ? 'bg-primary' : isToday ? 'bg-gray-600' : 'bg-gray-700 hover:bg-gray-600'
                   } disabled:opacity-50 disabled:cursor-not-allowed`}
                   disabled={availableSlotsCount === 0}
                 >
@@ -2811,6 +2876,99 @@ const ClientsTab: React.FC<{
       />
     </div>
   );
+};
+
+// --- NOVA ABA DE PERSONALIZAÇÃO VISUAL ---
+const VisualsTab: React.FC<{
+    barberData: BarberData;
+    onDataUpdate: () => void;
+}> = ({ barberData, onDataUpdate }) => {
+    const defaultTheme = { primaryColor: '#4F46E5', secondaryColor: '#7C3AED' };
+    const [colors, setColors] = useState(barberData.profile.theme || defaultTheme);
+    const [isSaving, setIsSaving] = useState(false);
+
+    const palettes = [
+        { name: 'Índigo/Violeta', primary: '#4F46E5', secondary: '#7C3AED' },
+        { name: 'Azul/Ciano', primary: '#0EA5E9', secondary: '#14B8A6' },
+        { name: 'Verde Esmeralda', primary: '#10B981', secondary: '#34D399' },
+        { name: 'Âmbar/Vermelho', primary: '#F59E0B', secondary: '#EF4444' },
+        { name: 'Rosa/Roxo', primary: '#EC4899', secondary: '#8B5CF6' },
+        { name: 'Índigo/Púrpura', primary: '#6366F1', secondary: '#A855F7' },
+    ];
+
+    const handleColorChange = (colorType: 'primaryColor' | 'secondaryColor', value: string) => {
+        setColors(prev => ({ ...prev, [colorType]: value }));
+    };
+
+    const handleSaveTheme = async () => {
+        setIsSaving(true);
+        try {
+            const updatedProfile = {
+                ...barberData.profile,
+                theme: colors,
+            };
+            const success = await FirestoreService.updateBarberProfile(barberData.id, updatedProfile);
+            if (success) {
+                alert('Tema salvo com sucesso!');
+                onDataUpdate();
+            } else {
+                throw new Error('Falha ao salvar o tema.');
+            }
+        } catch (error) {
+            console.error("Erro ao salvar tema:", error);
+            alert("Não foi possível salvar o tema.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+    
+    return (
+        <div className="space-y-8">
+            <h2 className="text-3xl font-bold">Personalização Visual</h2>
+
+            <div className="bg-gray-800 p-6 rounded-lg">
+                <h3 className="text-xl font-semibold mb-2">Cores do Tema</h3>
+                <p className="text-gray-400 mb-6">Personalize as cores da sua página de agendamentos.</p>
+                
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
+                    {palettes.map(palette => (
+                        <button key={palette.name} onClick={() => setColors({ primary: palette.primary, secondary: palette.secondary })} className="bg-gray-700 p-3 rounded-lg text-center hover:bg-gray-600 transition-all">
+                            <div className="h-10 rounded-md mb-2" style={{ background: `linear-gradient(to right, ${palette.primary}, ${palette.secondary})` }}></div>
+                            <span className="text-sm">{palette.name}</span>
+                        </button>
+                    ))}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">Cor Primária</label>
+                        <div className="flex items-center gap-2 bg-gray-700 p-2 rounded-lg border border-gray-600">
+                            <input type="color" value={colors.primaryColor} onChange={e => handleColorChange('primaryColor', e.target.value)} className="w-8 h-8 p-0 border-none rounded cursor-pointer bg-transparent" />
+                            <input type="text" value={colors.primaryColor} onChange={e => handleColorChange('primaryColor', e.target.value)} className="w-full bg-transparent text-white focus:outline-none" />
+                        </div>
+                    </div>
+                     <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">Cor Secundária</label>
+                         <div className="flex items-center gap-2 bg-gray-700 p-2 rounded-lg border border-gray-600">
+                            <input type="color" value={colors.secondaryColor} onChange={e => handleColorChange('secondaryColor', e.target.value)} className="w-8 h-8 p-0 border-none rounded cursor-pointer bg-transparent" />
+                            <input type="text" value={colors.secondaryColor} onChange={e => handleColorChange('secondaryColor', e.target.value)} className="w-full bg-transparent text-white focus:outline-none" />
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Prévia</label>
+                    <div className="p-4 border-2 border-dashed border-gray-600 rounded-lg">
+                        <div className="h-12 rounded-lg" style={{ background: `linear-gradient(to right, ${colors.primaryColor}, ${colors.secondaryColor})` }}></div>
+                    </div>
+                </div>
+            </div>
+
+            <button onClick={handleSaveTheme} disabled={isSaving} className="bg-green-600 text-white font-bold py-3 px-8 rounded-lg text-lg uppercase hover:bg-green-700 disabled:bg-gray-500 transition duration-300">
+                {isSaving ? 'Salvando...' : 'Salvar Alterações'}
+            </button>
+        </div>
+    );
 };
 
 

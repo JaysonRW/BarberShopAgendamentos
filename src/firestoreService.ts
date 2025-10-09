@@ -1,5 +1,5 @@
 // FIX: Import the 'firebase' module to resolve type errors for DocumentSnapshot and DocumentReference.
-import { firestore } from 'firebase/compat/app';
+import firebase from 'firebase/compat/app';
 import 'firebase/compat/firestore';
 import { db, storage, auth } from './firebaseConfig';
 import type { Promotion, GalleryImage, Service, Appointment, LoyaltyClient, Client, ClientFormData } from './types';
@@ -16,6 +16,7 @@ export interface BarberData {
     isActive: boolean;
     createdAt?: any;
     userID?: string; // Garante que o userID esteja no perfil
+    theme?: { primaryColor: string; secondaryColor: string; }; // Adicionado
   };
   promotions: Promotion[];
   galleryImages: GalleryImage[];
@@ -399,8 +400,8 @@ export class FirestoreService {
   }
 
   private static async createOrUpdateClientFromAppointment(
-    transaction: firestore.Transaction,
-    barberRef: firestore.DocumentReference<firestore.DocumentData>,
+    transaction: firebase.firestore.Transaction,
+    barberRef: firebase.firestore.DocumentReference<firebase.firestore.DocumentData>,
     appointmentData: Appointment
   ) {
       const normalizedWhatsapp = appointmentData.clientWhatsapp.replace(/\D/g, '');
@@ -768,7 +769,7 @@ export class FirestoreService {
   try {
     const snapshot = await db.collection('loyaltyClients')
       .where('barberId', '==', barberId)  // FILTRO CRÍTICO
-      .orderBy('points', 'desc')
+      .orderBy('clientName', 'asc') // MUDANÇA: Ordenar por nome para consistência
       .get();
     
     return snapshot.docs.map(doc => ({
