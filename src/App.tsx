@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, ChangeEvent, useEffect, useRef } from 'react';
-import type { Promotion, GalleryImage, Service, Appointment, LoyaltyClient } from './types';
+import type { Promotion, GalleryImage, Service, Appointment, LoyaltyClient, Client, ClientStats, ClientFormData } from './types';
 import { FirestoreService, BarberData } from './firestoreService';
 import { auth } from './firebaseConfig';
 import { testFirestoreWrite, testFirestoreRead } from './firebaseTest';
@@ -436,6 +436,7 @@ const TagIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M
 const GalleryIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M22 16V4c0-1.1-.9-2-2-2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2zm-11-4l2.03 2.71L16 11l4 5H8l3-4zM2 6v14c0 1.1.9 2 2 2h14v-2H4V6H2z" />;
 const CalendarIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zM9 14H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2zm-8 4H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2z" />;
 const StarIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />;
+const UsersIcon = ({className = "h-5 w-5"}) => <Icon className={className} path="M9 6a3 3 0 11-6 0 3 3 0 016 0zm8 0a3 3 0 11-6 0 3 3 0 016 0zm-4 6a3 3 0 11-6 0 3 3 0 016 0zM5 20a2 2 0 01-2-2v-6a2 2 0 012-2h10a2 2 0 012 2v6a2 2 0 01-2 2H5z" />;
 
 // === COMPONENTES ===
 
@@ -1190,7 +1191,7 @@ const AdminPanel: React.FC<{
   onLogout: () => void;
   onDataUpdate: () => void;
 }> = ({ barberData, onLogout, onDataUpdate }) => {
-  const [activeTab, setActiveTab] = useState<'profile' | 'dashboard' | 'services' | 'promotions' | 'gallery' | 'appointments' | 'loyalty'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'profile' | 'dashboard' | 'services' | 'promotions' | 'gallery' | 'appointments' | 'loyalty' | 'clients'>('dashboard');
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<any>({});
   
@@ -1202,6 +1203,9 @@ const AdminPanel: React.FC<{
   const [isLoadingAppointments, setIsLoadingAppointments] = useState(true);
   const [loyaltyClients, setLoyaltyClients] = useState<LoyaltyClient[]>([]);
   const [isLoyaltyLoading, setIsLoyaltyLoading] = useState(true);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [isLoadingClients, setIsLoadingClients] = useState(true);
+
 
   const loadAppointments = useCallback(async () => {
     if (!barberData.id) return;
@@ -1225,10 +1229,25 @@ const AdminPanel: React.FC<{
     setIsLoyaltyLoading(false);
   }, [barberData.id]);
 
+  const loadClients = useCallback(async () => {
+    if (!barberData.id) return;
+    setIsLoadingClients(true);
+    try {
+      const clientsData = await FirestoreService.getClients(barberData.id);
+      setClients(clientsData);
+    } catch (error) {
+      console.error("Erro ao carregar clientes:", error);
+      alert("Não foi possível carregar os clientes.");
+    } finally {
+      setIsLoadingClients(false);
+    }
+  }, [barberData.id]);
+
   useEffect(() => {
     loadAppointments();
     loadLoyaltyData();
-  }, [loadAppointments, loadLoyaltyData]);
+    loadClients();
+  }, [loadAppointments, loadLoyaltyData, loadClients]);
 
   const fullBarberData = useMemo(() => ({
     ...barberData,
@@ -1239,7 +1258,8 @@ const AdminPanel: React.FC<{
     onDataUpdate();
     loadAppointments();
     loadLoyaltyData();
-  }, [onDataUpdate, loadAppointments, loadLoyaltyData]);
+    loadClients();
+  }, [onDataUpdate, loadAppointments, loadLoyaltyData, loadClients]);
 
   const financialSummary = useMemo(() => {
     return calculateFinancials(appointments);
@@ -1360,6 +1380,7 @@ const AdminPanel: React.FC<{
               {[
                 { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
                 { id: 'profile', label: 'Perfil da Barbearia', icon: <ShopIcon /> },
+                { id: 'clients', label: 'Clientes', icon: <UsersIcon /> },
                 { id: 'services', label: 'Serviços', icon: <ScissorsIcon /> },
                 { id: 'promotions', label: 'Promoções', icon: <TagIcon /> },
                 { id: 'gallery', label: 'Galeria', icon: <GalleryIcon /> },
@@ -1383,7 +1404,7 @@ const AdminPanel: React.FC<{
           </div>
 
           <div className="flex-1">
-            {isLoadingAppointments ? (
+            {isLoadingAppointments || isLoadingClients ? (
               <div className="flex justify-center items-center h-full">
                 <LoadingSpinner message="Carregando dados do painel..." />
               </div>
@@ -1408,6 +1429,14 @@ const AdminPanel: React.FC<{
                     uploadFile={uploadFile}
                     setUploadFile={setUploadFile}
                     isUploading={isUploading}
+                  />
+                )}
+                 {activeTab === 'clients' && (
+                  <ClientsTab
+                    barberId={barberData.id}
+                    clients={clients}
+                    isLoading={isLoadingClients}
+                    onDataUpdate={handleAdminDataUpdate}
                   />
                 )}
                 
@@ -2537,5 +2566,252 @@ const LoyaltyTab: React.FC<{
     </div>
   );
 };
+
+// --- NOVOS COMPONENTES PARA GERENCIAMENTO DE CLIENTES ---
+
+// Modal para Criar/Editar Cliente
+const ClientFormModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (clientData: ClientFormData, clientId?: string) => Promise<void>;
+  client?: Client | null;
+  isLoading: boolean;
+}> = ({ isOpen, onClose, onSave, client, isLoading }) => {
+  const [formData, setFormData] = useState<ClientFormData>({
+    name: '',
+    whatsapp: '',
+    email: '',
+    birthdate: '',
+    tags: [],
+    notes: '',
+  });
+
+  useEffect(() => {
+    if (client) {
+      setFormData({
+        name: client.name || '',
+        whatsapp: client.whatsapp || '',
+        email: client.email || '',
+        birthdate: client.birthdate || '',
+        tags: client.tags || [],
+        notes: client.notes || '',
+      });
+    } else {
+      setFormData({ name: '', whatsapp: '', email: '', birthdate: '', tags: [], notes: '' });
+    }
+  }, [client, isOpen]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.name || !formData.whatsapp) {
+      alert('Nome e WhatsApp são obrigatórios.');
+      return;
+    }
+    await onSave(formData, client?.id);
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
+      <div className="bg-gray-800 p-8 rounded-xl shadow-2xl text-white w-full max-w-lg">
+        <h2 className="text-3xl font-bold text-center mb-6">
+          {client ? 'Editar Cliente' : 'Novo Cliente'}
+        </h2>
+        <form onSubmit={handleSave} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <input type="text" name="name" value={formData.name} onChange={handleChange} placeholder="Nome Completo *" required className="w-full p-3 bg-gray-700 rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-red-500"/>
+            <input type="tel" name="whatsapp" value={formData.whatsapp} onChange={handleChange} placeholder="WhatsApp (somente números) *" required className="w-full p-3 bg-gray-700 rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-red-500"/>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <input type="email" name="email" value={formData.email} onChange={handleChange} placeholder="Email (opcional)" className="w-full p-3 bg-gray-700 rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-red-500"/>
+            <input type="date" name="birthdate" value={formData.birthdate} onChange={handleChange} placeholder="Data de Nascimento" className="w-full p-3 bg-gray-700 rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-red-500"/>
+          </div>
+          <textarea name="notes" value={formData.notes} onChange={handleChange} placeholder="Observações sobre o cliente..." rows={4} className="w-full p-3 bg-gray-700 rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-red-500"/>
+
+          <div className="flex flex-col md:flex-row gap-4 pt-4">
+            <button type="submit" disabled={isLoading} className="w-full md:w-auto flex-1 bg-red-600 font-bold py-3 px-6 rounded-lg uppercase hover:bg-red-700 transition duration-300 disabled:bg-gray-500">
+              {isLoading ? 'Salvando...' : 'Salvar Cliente'}
+            </button>
+            <button type="button" onClick={onClose} className="w-full md:w-auto bg-gray-600 font-bold py-3 px-6 rounded-lg uppercase hover:bg-gray-500 transition duration-300">
+              Cancelar
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+
+// Aba de Clientes
+const ClientsTab: React.FC<{
+  barberId: string;
+  clients: Client[];
+  isLoading: boolean;
+  onDataUpdate: () => void;
+}> = ({ barberId, clients, isLoading, onDataUpdate }) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState<'name' | 'lastVisit' | 'totalVisits'>('name');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  
+  const clientStats: ClientStats = useMemo(() => {
+    const now = new Date();
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    
+    const newThisMonth = clients.filter(c => c.createdAt?.toDate() >= firstDayOfMonth).length;
+    const activeClients = clients.filter(c => c.totalVisits > 0).length;
+    const totalVisits = clients.reduce((sum, c) => sum + c.totalVisits, 0);
+    const avgVisits = activeClients > 0 ? totalVisits / activeClients : 0;
+
+    return {
+      totalClients: clients.length,
+      newThisMonth,
+      activeClients,
+      avgVisits: parseFloat(avgVisits.toFixed(1)),
+    };
+  }, [clients]);
+
+  const filteredAndSortedClients = useMemo(() => {
+    return clients
+      .filter(c =>
+        c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        c.whatsapp.includes(searchTerm)
+      )
+      .sort((a, b) => {
+        if (sortBy === 'name') return a.name.localeCompare(b.name);
+        if (sortBy === 'totalVisits') return b.totalVisits - a.totalVisits;
+        if (sortBy === 'lastVisit') {
+          const dateA = a.lastVisit ? new Date(a.lastVisit).getTime() : 0;
+          const dateB = b.lastVisit ? new Date(b.lastVisit).getTime() : 0;
+          return dateB - dateA;
+        }
+        return 0;
+      });
+  }, [clients, searchTerm, sortBy]);
+
+  const handleOpenModal = (client: Client | null = null) => {
+    setEditingClient(client);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setEditingClient(null);
+  };
+
+  const handleSaveClient = async (formData: ClientFormData, clientId?: string) => {
+    setIsSaving(true);
+    try {
+      if (clientId) {
+        // Update
+        await FirestoreService.updateClient(barberId, clientId, formData);
+        alert('Cliente atualizado com sucesso!');
+      } else {
+        // Create
+        await FirestoreService.addClient(barberId, formData);
+        alert('Cliente criado com sucesso!');
+      }
+      onDataUpdate();
+      handleCloseModal();
+    } catch (error) {
+      console.error('Erro ao salvar cliente:', error);
+      alert('Ocorreu um erro ao salvar o cliente.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+  
+  const handleDeleteClient = async (clientId: string) => {
+    if (confirm('Tem certeza que deseja excluir este cliente? Esta ação não pode ser desfeita.')) {
+      try {
+        await FirestoreService.deleteClient(barberId, clientId);
+        alert('Cliente excluído com sucesso.');
+        onDataUpdate();
+      } catch (error) {
+        console.error('Erro ao excluir cliente:', error);
+        alert('Ocorreu um erro ao excluir o cliente.');
+      }
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-3xl font-bold">Gestão de Clientes</h2>
+        <button onClick={() => handleOpenModal()} className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition duration-300">
+          Adicionar Cliente
+        </button>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-gray-800 p-4 rounded-lg"><p className="text-sm text-gray-400">Total de Clientes</p><p className="text-2xl font-bold">{clientStats.totalClients}</p></div>
+        <div className="bg-gray-800 p-4 rounded-lg"><p className="text-sm text-gray-400">Novos este Mês</p><p className="text-2xl font-bold">{clientStats.newThisMonth}</p></div>
+        <div className="bg-gray-800 p-4 rounded-lg"><p className="text-sm text-gray-400">Clientes Ativos</p><p className="text-2xl font-bold">{clientStats.activeClients}</p></div>
+        <div className="bg-gray-800 p-4 rounded-lg"><p className="text-sm text-gray-400">Média de Visitas</p><p className="text-2xl font-bold">{clientStats.avgVisits}</p></div>
+      </div>
+      
+      {/* Controls */}
+      <div className="bg-gray-800 p-4 rounded-lg flex flex-col md:flex-row gap-4">
+        <input type="text" placeholder="Buscar por nome ou WhatsApp..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="flex-grow p-2 bg-gray-700 rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-red-500"/>
+        <select value={sortBy} onChange={e => setSortBy(e.target.value as any)} className="p-2 bg-gray-700 rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-red-500">
+          <option value="name">Ordenar por Nome</option>
+          <option value="lastVisit">Ordenar por Recentes</option>
+          <option value="totalVisits">Ordenar por Mais Visitas</option>
+        </select>
+      </div>
+
+      {/* Client List */}
+      {isLoading ? <LoadingSpinner message="Carregando clientes..." /> : (
+        <div className="bg-gray-800 rounded-lg overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead className="bg-gray-700">
+                <tr>
+                  <th className="p-4">Nome</th>
+                  <th className="p-4">Contato</th>
+                  <th className="p-4 text-center">Visitas</th>
+                  <th className="p-4">Última Visita</th>
+                  <th className="p-4 text-right">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredAndSortedClients.map(client => (
+                  <tr key={client.id} className="border-b border-gray-700 hover:bg-gray-700/50">
+                    <td className="p-4 font-semibold">{client.name}</td>
+                    <td className="p-4 text-gray-300">{client.whatsapp}</td>
+                    <td className="p-4 text-center text-lg font-bold">{client.totalVisits}</td>
+                    <td className="p-4 text-gray-300">{client.lastVisit ? new Date(client.lastVisit).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : 'N/A'}</td>
+                    <td className="p-4 text-right space-x-2">
+                      <button onClick={() => handleOpenModal(client)} className="bg-blue-600 px-3 py-1 rounded text-sm hover:bg-blue-700">Editar</button>
+                      <button onClick={() => handleDeleteClient(client.id)} className="bg-red-600 px-3 py-1 rounded text-sm hover:bg-red-700">Excluir</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      <ClientFormModal 
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        onSave={handleSaveClient}
+        client={editingClient}
+        isLoading={isSaving}
+      />
+    </div>
+  );
+};
+
 
 export default App;

@@ -16,8 +16,8 @@ export default defineConfig(({ mode }) => {
       },
       resolve: {
         alias: {
-          // FIX: Use `__dirname` to resolve the path alias. This is the idiomatic way in Vite configs and avoids TypeScript type errors related to missing Node.js definitions for `process.cwd()`.
-          '@': path.resolve(__dirname, '.'),
+          // FIX: Use `process.cwd()` to resolve the path alias. This avoids TypeScript type errors related to missing Node.js definitions for `__dirname`.
+          '@': path.resolve(process.cwd(), '.'),
         }
       }
     };

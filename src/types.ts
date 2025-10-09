@@ -42,3 +42,32 @@ export interface LoyaltyClient {
   createdAt?: any;
   updatedAt?: any;
 }
+
+// --- NOVOS TIPOS PARA GESTÃO DE CLIENTES ---
+
+export interface ClientFormData {
+  name: string;
+  whatsapp: string;
+  email?: string;
+  birthdate?: string;
+  tags?: string[];
+  notes?: string;
+}
+
+export interface Client extends ClientFormData {
+  id: string; // Será o número de WhatsApp normalizado
+  barberId: string;
+  totalVisits: number;
+  totalSpent: number;
+  lastVisit: string | null; // ISO date string
+  preferredServices: Record<string, number>; // { serviceName: count }
+  createdAt: any;
+  updatedAt: any;
+}
+
+export interface ClientStats {
+  totalClients: number;
+  newThisMonth: number;
+  activeClients: number;
+  avgVisits: number;
+}
