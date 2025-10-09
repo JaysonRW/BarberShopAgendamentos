@@ -1,7 +1,9 @@
 
 
 
-import * as React from 'react';
+
+
+import React from 'react';
 import type { Promotion, GalleryImage, Service, Appointment, LoyaltyClient, Client, ClientStats, ClientFormData } from './types';
 import { FirestoreService, BarberData } from './firestoreService';
 import { auth } from './firebaseConfig';
@@ -791,7 +793,8 @@ const BookingForm: React.FC<{
     serviceId: '',
     date: '',
     time: '',
-    paymentMethod: 'PIX'
+    paymentMethod: 'PIX',
+    birthdate: ''
   });
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [showSuccess, setShowSuccess] = React.useState(false);
@@ -835,6 +838,7 @@ const BookingForm: React.FC<{
       const appointmentData = {
         clientName: formData.clientName,
         clientWhatsapp: formData.clientWhatsapp,
+        birthdate: formData.birthdate,
         service: selectedService,
         serviceId: selectedService.id,
         serviceName: selectedService.name,
@@ -866,7 +870,8 @@ const BookingForm: React.FC<{
           serviceId: '',
           date: '',
           time: '',
-          paymentMethod: 'PIX'
+          paymentMethod: 'PIX',
+          birthdate: ''
         });
       } else {
         alert('Erro ao criar agendamento. Horário pode não estar mais disponível.');
@@ -1001,6 +1006,15 @@ const BookingForm: React.FC<{
                 placeholder="Ex: 5511999998888" 
                 className="w-full px-4 py-3 bg-gray-100 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 ring-primary text-gray-900" 
                 required
+              />
+            </div>
+             <div>
+              <label className="block text-gray-800 font-bold mb-2">Data de Nascimento</label>
+              <input 
+                type="date" 
+                value={formData.birthdate}
+                onChange={e => handleInputChange('birthdate', e.target.value)}
+                className="w-full px-4 py-3 bg-gray-100 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 ring-primary text-gray-900"
               />
             </div>
           </div>

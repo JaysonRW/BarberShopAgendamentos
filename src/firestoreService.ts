@@ -472,7 +472,7 @@ export class FirestoreService {
                         if (!clientManagementDoc.exists) {
                             const newClientData: Omit<Client, 'id'> = {
                                 barberId: barberRef.id, name: appointmentData.clientName, whatsapp: normalizedWhatsapp,
-                                email: '', birthdate: '', tags: ['novo-cliente'],
+                                email: '', birthdate: appointmentData.birthdate || '', tags: ['novo-cliente'],
                                 notes: `Cliente criado automaticamente do agendamento em ${new Date(appointmentData.date).toLocaleDateString('pt-BR')}.`,
                                 totalVisits: 1, totalSpent: servicePrice, lastVisit: appointmentData.date,
                                 preferredServices: { [serviceName]: 1 }, createdAt: new Date(), updatedAt: new Date(),
@@ -490,6 +490,9 @@ export class FirestoreService {
                                 name: appointmentData.clientName,
                                 updatedAt: new Date(),
                             };
+                             if (appointmentData.birthdate && !clientData.birthdate) {
+                                updateData.birthdate = appointmentData.birthdate;
+                            }
                             transaction.update(clientManagementRef, updateData);
                         }
                     }

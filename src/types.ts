@@ -22,6 +22,7 @@ export interface Appointment {
   id: string;
   clientName: string;
   clientWhatsapp: string;
+  birthdate?: string; // Adicionado
   service: Service;
   date: string;
   time: string;
