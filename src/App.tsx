@@ -1,4 +1,5 @@
 
+
 import React, { useState, useCallback, useMemo, ChangeEvent, useEffect, useRef } from 'react';
 import type { Promotion, GalleryImage, Service, Appointment, LoyaltyClient, Client, ClientStats, ClientFormData } from './types';
 import { FirestoreService, BarberData } from './firestoreService';
@@ -497,7 +498,8 @@ const UsersIcon: React.FC<{className?: string}> = ({className = "h-5 w-5"}) => <
 // === COMPONENTES ===
 
 // Loading Spinner
-const LoadingSpinner = ({ message = 'Carregando...', progress }: { message?: string, progress?: number }) => (
+// FIX: Added React.FC type for consistency and to fix potential JSX intrinsic element errors.
+const LoadingSpinner: React.FC<{ message?: string, progress?: number }> = ({ message = 'Carregando...', progress }) => (
   <div className="fixed inset-0 bg-gray-900 bg-opacity-80 flex items-center justify-center z-50">
     <div className="flex flex-col items-center">
       <div className="h-16 w-16 animate-spin rounded-full border-4 border-dashed border-primary"></div>
@@ -513,7 +515,8 @@ const LoadingSpinner = ({ message = 'Carregando...', progress }: { message?: str
 
 
 // Página não encontrada
-const NotFound = () => (
+// FIX: Added React.FC type for consistency and to fix potential JSX intrinsic element errors.
+const NotFound: React.FC = () => (
   <div className="flex flex-col items-center justify-center h-screen bg-gray-900 text-white">
     <h1 className="text-4xl font-bold mb-4">Barbearia não encontrada</h1>
     <p className="text-gray-300">O link que você acessou não existe ou foi removido.</p>
@@ -521,7 +524,8 @@ const NotFound = () => (
 );
 
 // Novo: Componente para erro de conexão
-const ConnectionError = ({ message }: { message: string }) => (
+// FIX: Added React.FC type for consistency and to fix potential JSX intrinsic element errors.
+const ConnectionError: React.FC<{ message: string }> = ({ message }) => (
   <div className="flex flex-col items-center justify-center h-screen bg-gray-900 text-white text-center p-4">
     <h1 className="text-4xl font-bold mb-4">Erro de Conexão</h1>
     <p className="text-gray-300 max-w-md">{message}</p>
@@ -535,15 +539,8 @@ const ConnectionError = ({ message }: { message: string }) => (
 );
 
 // Componente de Debug (apenas em desenvolvimento)
-const DebugPanel = ({ 
-  user, 
-  barberData, 
-  view, 
-  useMockData,
-  onRefreshData,
-  onSetUser,
-  onSetView
-}: { 
+// FIX: Added React.FC type for consistency and to fix potential JSX intrinsic element errors.
+const DebugPanel: React.FC<{ 
   user: any; 
   barberData: BarberData | null; 
   view: string; 
@@ -551,6 +548,14 @@ const DebugPanel = ({
   onRefreshData: () => void;
   onSetUser: (user: any) => void;
   onSetView: (view: 'client' | 'admin') => void;
+}> = ({ 
+  user, 
+  barberData, 
+  view, 
+  useMockData,
+  onRefreshData,
+  onSetUser,
+  onSetView
 }) => {
   if (process.env.NODE_ENV !== 'development') return null;
   

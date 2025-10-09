@@ -399,123 +399,116 @@ export class FirestoreService {
     }
   }
 
-  private static async createOrUpdateClientFromAppointment(
-    transaction: firebase.firestore.Transaction,
-    barberRef: firebase.firestore.DocumentReference<firebase.firestore.DocumentData>,
-    appointmentData: Appointment
-  ) {
-      const normalizedWhatsapp = appointmentData.clientWhatsapp.replace(/\D/g, '');
-      if (!normalizedWhatsapp) return;
-
-      const clientRef = barberRef.collection('clients').doc(normalizedWhatsapp);
-      const clientDoc = await transaction.get(clientRef);
-
-      const servicePrice = appointmentData.service?.price || 0;
-      const serviceName = appointmentData.service?.name || 'Serviço Desconhecido';
-
-      if (!clientDoc.exists) {
-          const newClientData: Omit<Client, 'id'> = {
-              barberId: barberRef.id,
-              name: appointmentData.clientName,
-              whatsapp: normalizedWhatsapp,
-              email: '',
-              birthdate: '',
-              tags: ['novo-cliente'],
-              notes: `Cliente criado automaticamente do agendamento em ${new Date(appointmentData.date).toLocaleDateString('pt-BR')}.`,
-              totalVisits: 1,
-              totalSpent: servicePrice,
-              lastVisit: appointmentData.date,
-              preferredServices: { [serviceName]: 1 },
-              createdAt: new Date(),
-              updatedAt: new Date(),
-          };
-          transaction.set(clientRef, newClientData);
-      } else {
-          const clientData = clientDoc.data() as Client;
-          const updatedPreferredServices = { ...clientData.preferredServices };
-          updatedPreferredServices[serviceName] = (updatedPreferredServices[serviceName] || 0) + 1;
-
-          const updateData: Partial<Client> = {
-              totalVisits: (clientData.totalVisits || 0) + 1,
-              totalSpent: (clientData.totalSpent || 0) + servicePrice,
-              lastVisit: appointmentData.date,
-              preferredServices: updatedPreferredServices,
-              name: appointmentData.clientName, // Sempre atualiza o nome para o mais recente
-              updatedAt: new Date(),
-          };
-          transaction.update(clientRef, updateData);
-      }
-  }
-  
   static async updateAppointmentStatus(barberId: string, appointmentId: string, status: 'Pendente' | 'Confirmado'): Promise<boolean> {
     return this.withAuthentication(barberId, async () => {
-      const barberRef = db.collection('barbers').doc(barberId);
-      const appointmentRef = barberRef.collection('appointments').doc(appointmentId);
-      
-      try {
-        await db.runTransaction(async (transaction) => {
-          const appointmentDoc = await transaction.get(appointmentRef);
-          if (!appointmentDoc.exists) throw new Error("Agendamento não encontrado.");
-          
-          const barberDoc = await transaction.get(barberRef);
-          if (!barberDoc.exists) throw new Error("Barbearia não encontrada.");
+        const barberRef = db.collection('barbers').doc(barberId);
+        const appointmentRef = barberRef.collection('appointments').doc(appointmentId);
 
-          const appointmentData = appointmentDoc.data() as Appointment;
-          const normalizedWhatsapp = appointmentData.clientWhatsapp.replace(/\D/g, '');
-          
-          const currentStatus = appointmentData.status;
-          
-          if (currentStatus === 'Pendente' && status === 'Confirmado') {
-            const availability = barberDoc.data()?.availability || {};
-            const daySlots = availability[appointmentData.date] || [];
-            if (daySlots.includes(appointmentData.time)) {
-              const updatedSlots = daySlots.filter((slot: string) => slot !== appointmentData.time);
-              transaction.update(barberRef, { [`availability.${appointmentData.date}`]: updatedSlots });
-            }
-            
-            // Lógica de Fidelidade (existente)
-            if (normalizedWhatsapp) {
-              const loyaltyDocId = `${barberId}_${normalizedWhatsapp}`;
-              const clientRef = db.collection('loyaltyClients').doc(loyaltyDocId);
-              const clientDoc = await transaction.get(clientRef);
-              const GOAL = 5;
-              const data = clientDoc?.data() as LoyaltyClient | undefined;
-              const currentStars = data?.stars || 0;
-              const currentGoal = data?.goal || GOAL;
-              if (currentStars < currentGoal) {
-                  const newStars = currentStars + 1;
-                  const clientData: Partial<LoyaltyClient> = {
-                      barberId, clientWhatsapp: normalizedWhatsapp, clientName: appointmentData.clientName,
-                      stars: newStars, goal: currentGoal,
-                      lifetimeAppointments: (data?.lifetimeAppointments || 0) + 1,
-                      updatedAt: new Date(),
-                  };
-                  if (!clientDoc?.exists) {
-                    clientData.id = clientRef.id;
-                    clientData.createdAt = new Date();
-                  }
-                  transaction.set(clientRef, clientData, { merge: true });
-              }
-            }
-            // Nova Lógica de Gestão de Clientes
-            await this.createOrUpdateClientFromAppointment(transaction, barberRef, appointmentData);
-          }
-          
-          const updateData: any = { status, updatedAt: new Date() };
-          if (status === 'Confirmado') {
-            updateData.lembrete24henviado = false;
-          }
-          
-          transaction.update(appointmentRef, updateData);
-        });
-        
-        return true;
-      } catch (error) {
-        console.error('Erro ao atualizar status do agendamento:', error);
-        return false;
-      }
+        try {
+            await db.runTransaction(async (transaction) => {
+                // --- FASE DE LEITURA ---
+                const appointmentDoc = await transaction.get(appointmentRef);
+                if (!appointmentDoc.exists) throw new Error("Agendamento não encontrado.");
+                
+                const barberDoc = await transaction.get(barberRef);
+                if (!barberDoc.exists) throw new Error("Barbearia não encontrada.");
+
+                const appointmentData = appointmentDoc.data() as Appointment;
+                const currentStatus = appointmentData.status;
+                const normalizedWhatsapp = appointmentData.clientWhatsapp.replace(/\D/g, '');
+
+                let loyaltyClientDoc: firebase.firestore.DocumentSnapshot | null = null;
+                let clientManagementDoc: firebase.firestore.DocumentSnapshot | null = null;
+                
+                // Pré-carrega os documentos do cliente apenas se a transição de status exigir
+                if (currentStatus === 'Pendente' && status === 'Confirmado' && normalizedWhatsapp) {
+                    const loyaltyDocId = `${barberId}_${normalizedWhatsapp}`;
+                    const loyaltyClientRef = db.collection('loyaltyClients').doc(loyaltyDocId);
+                    loyaltyClientDoc = await transaction.get(loyaltyClientRef);
+
+                    const clientManagementRef = barberRef.collection('clients').doc(normalizedWhatsapp);
+                    clientManagementDoc = await transaction.get(clientManagementRef);
+                }
+
+                // --- FASE DE ESCRITA ---
+                if (currentStatus === 'Pendente' && status === 'Confirmado') {
+                    // Atualizar disponibilidade
+                    const availability = barberDoc.data()?.availability || {};
+                    const daySlots = availability[appointmentData.date] || [];
+                    if (daySlots.includes(appointmentData.time)) {
+                        const updatedSlots = daySlots.filter((slot: string) => slot !== appointmentData.time);
+                        transaction.update(barberRef, { [`availability.${appointmentData.date}`]: updatedSlots });
+                    }
+
+                    // Lógica de Fidelidade
+                    if (normalizedWhatsapp && loyaltyClientDoc) {
+                        const loyaltyClientRef = loyaltyClientDoc.ref;
+                        const GOAL = 5;
+                        const data = loyaltyClientDoc.data() as LoyaltyClient | undefined;
+                        const currentStars = data?.stars || 0;
+                        const currentGoal = data?.goal || GOAL;
+                        if (currentStars < currentGoal) {
+                            const newStars = currentStars + 1;
+                            const clientData: Partial<LoyaltyClient> = {
+                                barberId, clientWhatsapp: normalizedWhatsapp, clientName: appointmentData.clientName,
+                                stars: newStars, goal: currentGoal,
+                                lifetimeAppointments: (data?.lifetimeAppointments || 0) + 1,
+                                updatedAt: new Date(),
+                            };
+                            if (!loyaltyClientDoc.exists) {
+                                clientData.id = loyaltyClientRef.id;
+                                clientData.createdAt = new Date();
+                            }
+                            transaction.set(loyaltyClientRef, clientData, { merge: true });
+                        }
+                    }
+
+                    // Lógica de Gestão de Clientes
+                    if (normalizedWhatsapp && clientManagementDoc) {
+                        const clientManagementRef = clientManagementDoc.ref;
+                        const servicePrice = appointmentData.service?.price || 0;
+                        const serviceName = appointmentData.service?.name || 'Serviço Desconhecido';
+
+                        if (!clientManagementDoc.exists) {
+                            const newClientData: Omit<Client, 'id'> = {
+                                barberId: barberRef.id, name: appointmentData.clientName, whatsapp: normalizedWhatsapp,
+                                email: '', birthdate: '', tags: ['novo-cliente'],
+                                notes: `Cliente criado automaticamente do agendamento em ${new Date(appointmentData.date).toLocaleDateString('pt-BR')}.`,
+                                totalVisits: 1, totalSpent: servicePrice, lastVisit: appointmentData.date,
+                                preferredServices: { [serviceName]: 1 }, createdAt: new Date(), updatedAt: new Date(),
+                            };
+                            transaction.set(clientManagementRef, newClientData);
+                        } else {
+                            const clientData = clientManagementDoc.data() as Client;
+                            const updatedPreferredServices = { ...clientData.preferredServices };
+                            updatedPreferredServices[serviceName] = (updatedPreferredServices[serviceName] || 0) + 1;
+                            const updateData: Partial<Client> = {
+                                totalVisits: (clientData.totalVisits || 0) + 1,
+                                totalSpent: (clientData.totalSpent || 0) + servicePrice,
+                                lastVisit: appointmentData.date,
+                                preferredServices: updatedPreferredServices,
+                                name: appointmentData.clientName,
+                                updatedAt: new Date(),
+                            };
+                            transaction.update(clientManagementRef, updateData);
+                        }
+                    }
+                }
+
+                // Atualizar o status do agendamento
+                const updateData: any = { status, updatedAt: new Date() };
+                if (status === 'Confirmado') {
+                    updateData.lembrete24henviado = false;
+                }
+                transaction.update(appointmentRef, updateData);
+            });
+            return true;
+        } catch (error) {
+            console.error('Erro ao atualizar status do agendamento:', error);
+            return false;
+        }
     });
-  }
+}
 
   static async markReminderAsSent(barberId: string, appointmentId: string): Promise<boolean> {
     return this.withAuthentication(barberId, async () => {
@@ -766,21 +759,25 @@ export class FirestoreService {
   }
   
   static async getLoyaltyClientsForBarber(barberId: string): Promise<LoyaltyClient[]> {
-  try {
-    const snapshot = await db.collection('loyaltyClients')
-      .where('barberId', '==', barberId)  // FILTRO CRÍTICO
-      .orderBy('clientName', 'asc') // MUDANÇA: Ordenar por nome para consistência
-      .get();
-    
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    } as LoyaltyClient));
-  } catch (error) {
-    console.error('Erro ao carregar clientes de fidelidade:', error);
-    return [];
+    try {
+      const snapshot = await db.collection('loyaltyClients')
+        .where('barberId', '==', barberId) // FILTRO CRÍTICO
+        .get();
+      
+      const clients = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as LoyaltyClient));
+
+      // Ordena os clientes no lado do cliente para evitar a necessidade de um índice composto
+      clients.sort((a, b) => a.clientName.localeCompare(b.clientName));
+
+      return clients;
+    } catch (error) {
+      console.error('Erro ao carregar clientes de fidelidade:', error);
+      return [];
+    }
   }
-}
 
   static async redeemStars(barberId: string, clientWhatsapp: string, goal: number): Promise<boolean> {
     return this.withAuthentication(barberId, async () => {
