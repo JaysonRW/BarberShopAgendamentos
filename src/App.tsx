@@ -1,6 +1,7 @@
 
 
-import React, { useState, useCallback, useMemo, ChangeEvent, useEffect, useRef } from 'react';
+
+import * as React from 'react';
 import type { Promotion, GalleryImage, Service, Appointment, LoyaltyClient, Client, ClientStats, ClientFormData } from './types';
 import { FirestoreService, BarberData } from './firestoreService';
 import { auth } from './firebaseConfig';
@@ -13,12 +14,12 @@ import { populateTestData, createTestBarber } from './populateTestData';
 
 // === SISTEMA DE ROTEAMENTO MELHORADO ===
 const useRouting = () => {
-  const [currentRoute, setCurrentRoute] = useState<{
+  const [currentRoute, setCurrentRoute] = React.useState<{
     type: 'barber' | 'admin' | 'notfound';
     slug?: string;
   } | null>(null);
 
-  useEffect(() => {
+  React.useEffect(() => {
     const determineRoute = () => {
       const path = window.location.pathname;
       const slug = getBarberSlugFromUrl();
@@ -182,19 +183,19 @@ const ThemeStyles: React.FC<{ theme?: { primaryColor: string; secondaryColor: st
 
 // === COMPONENTE APP PRINCIPAL REATORADO ===
 const App: React.FC = () => {
-  const [loading, setLoading] = useState(true);
-  const [barberData, setBarberData] = useState<BarberData | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [user, setUser] = useState<any | null>(() => auth.currentUser);
-  const [isAuthLoading, setIsAuthLoading] = useState(true);
-  const [view, setView] = useState<'client' | 'admin'>('client');
-  const [showLoginModal, setShowLoginModal] = useState(false);
-  const [loginError, setLoginError] = useState('');
-  const [unauthorizedAccessInfo, setUnauthorizedAccessInfo] = useState<{ userEmail: string; attemptedSlug: string } | null>(null);
+  const [loading, setLoading] = React.useState(true);
+  const [barberData, setBarberData] = React.useState<BarberData | null>(null);
+  const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+  const [user, setUser] = React.useState<any | null>(() => auth.currentUser);
+  const [isAuthLoading, setIsAuthLoading] = React.useState(true);
+  const [view, setView] = React.useState<'client' | 'admin'>('client');
+  const [showLoginModal, setShowLoginModal] = React.useState(false);
+  const [loginError, setLoginError] = React.useState('');
+  const [unauthorizedAccessInfo, setUnauthorizedAccessInfo] = React.useState<{ userEmail: string; attemptedSlug: string } | null>(null);
 
   const currentRoute = useRouting();
 
-  const handleFirestoreError = useCallback((error: any) => {
+  const handleFirestoreError = React.useCallback((error: any) => {
     console.error('Firestore Error:', error);
     if (error.code === 'unavailable' || error.code === 'permission-denied') {
       setErrorMessage(APP_CONFIG.ERROR_MESSAGES.CONNECTION_ERROR);
@@ -204,7 +205,7 @@ const App: React.FC = () => {
     setBarberData(null);
   }, []);
 
-  const loadBarberData = useCallback(async (barberId: string | null) => {
+  const loadBarberData = React.useCallback(async (barberId: string | null) => {
     if (!barberId) {
       setBarberData(null);
       setErrorMessage(APP_CONFIG.ERROR_MESSAGES.BARBER_NOT_FOUND);
@@ -225,7 +226,7 @@ const App: React.FC = () => {
   }, [handleFirestoreError]);
 
   // Efeito para gerenciar o estado de autenticação
-  useEffect(() => {
+  React.useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(currentUser => {
       setUser(currentUser);
       setIsAuthLoading(false);
@@ -234,7 +235,7 @@ const App: React.FC = () => {
   }, []);
 
   // Efeito para carregar os dados com base na rota e no usuário
-  useEffect(() => {
+  React.useEffect(() => {
     const initializeApp = async () => {
       if (!currentRoute || isAuthLoading) {
         return;
@@ -784,7 +785,7 @@ const BookingForm: React.FC<{
   barberData: BarberData;
   onBookingSuccess: () => void;
 }> = ({ services, availability, barberData, onBookingSuccess }) => {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = React.useState({
     clientName: '',
     clientWhatsapp: '',
     serviceId: '',
@@ -792,10 +793,10 @@ const BookingForm: React.FC<{
     time: '',
     paymentMethod: 'PIX'
   });
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [showSuccess, setShowSuccess] = React.useState(false);
 
-  const availableDates = useMemo(() => {
+  const availableDates = React.useMemo(() => {
     const today = new Date();
     const dates = [];
     for (let i = 0; i < 7; i++) {
@@ -1080,16 +1081,16 @@ const LoginModal: React.FC<{
   error: string;
   clearError: () => void;
 }> = ({ onClose, onLogin, onSignUp, error, clearError }) => {
-  const [mode, setMode] = useState<'login' | 'signup'>('login');
+  const [mode, setMode] = React.useState<'login' | 'signup'>('login');
   
   // State for both forms
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [shopName, setShopName] = useState('');
-  const [location, setLocation] = useState('');
-  const [whatsapp, setWhatsapp] = useState('');
+  const [email, setEmail] = React.useState('');
+  const [password, setPassword] = React.useState('');
+  const [shopName, setShopName] = React.useState('');
+  const [location, setLocation] = React.useState('');
+  const [whatsapp, setWhatsapp] = React.useState('');
   
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = React.useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1181,7 +1182,7 @@ const RemindersModal: React.FC<{
   onClose: () => void;
   onReminderSent: () => void;
 }> = ({ reminders, barberId, shopName, onClose, onReminderSent }) => {
-  const [sentIds, setSentIds] = useState<string[]>([]);
+  const [sentIds, setSentIds] = React.useState<string[]>([]);
 
   const handleSend = async (reminder: Appointment) => {
     // Mensagem amigável para o cliente
@@ -1252,23 +1253,23 @@ const AdminPanel: React.FC<{
   onLogout: () => void;
   onDataUpdate: () => void;
 }> = ({ barberData, onLogout, onDataUpdate }) => {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'profile' | 'visuals' | 'services' | 'promotions' | 'gallery' | 'appointments' | 'loyalty' | 'clients'>('dashboard');
-  const [isEditing, setIsEditing] = useState(false);
-  const [editData, setEditData] = useState<any>({});
+  const [activeTab, setActiveTab] = React.useState<'dashboard' | 'profile' | 'visuals' | 'services' | 'promotions' | 'gallery' | 'appointments' | 'loyalty' | 'clients'>('dashboard');
+  const [isEditing, setIsEditing] = React.useState(false);
+  const [editData, setEditData] = React.useState<any>({});
   
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<number | undefined>(undefined);
+  const [uploadFile, setUploadFile] = React.useState<File | null>(null);
+  const [isUploading, setIsUploading] = React.useState(false);
+  const [uploadProgress, setUploadProgress] = React.useState<number | undefined>(undefined);
 
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [isLoadingAppointments, setIsLoadingAppointments] = useState(true);
-  const [loyaltyClients, setLoyaltyClients] = useState<LoyaltyClient[]>([]);
-  const [isLoyaltyLoading, setIsLoyaltyLoading] = useState(true);
-  const [clients, setClients] = useState<Client[]>([]);
-  const [isLoadingClients, setIsLoadingClients] = useState(true);
+  const [appointments, setAppointments] = React.useState<Appointment[]>([]);
+  const [isLoadingAppointments, setIsLoadingAppointments] = React.useState(true);
+  const [loyaltyClients, setLoyaltyClients] = React.useState<LoyaltyClient[]>([]);
+  const [isLoyaltyLoading, setIsLoyaltyLoading] = React.useState(true);
+  const [clients, setClients] = React.useState<Client[]>([]);
+  const [isLoadingClients, setIsLoadingClients] = React.useState(true);
 
 
-  const loadAppointments = useCallback(async () => {
+  const loadAppointments = React.useCallback(async () => {
     if (!barberData.id) return;
     setIsLoadingAppointments(true);
     try {
@@ -1282,7 +1283,7 @@ const AdminPanel: React.FC<{
     }
   }, [barberData.id]);
 
-  const loadLoyaltyData = useCallback(async () => {
+  const loadLoyaltyData = React.useCallback(async () => {
     if (!barberData.id) return;
     setIsLoyaltyLoading(true);
     const clients = await FirestoreService.getLoyaltyClientsForBarber(barberData.id);
@@ -1290,7 +1291,7 @@ const AdminPanel: React.FC<{
     setIsLoyaltyLoading(false);
   }, [barberData.id]);
 
-  const loadClients = useCallback(async () => {
+  const loadClients = React.useCallback(async () => {
     if (!barberData.id) return;
     setIsLoadingClients(true);
     try {
@@ -1304,25 +1305,25 @@ const AdminPanel: React.FC<{
     }
   }, [barberData.id]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     loadAppointments();
     loadLoyaltyData();
     loadClients();
   }, [loadAppointments, loadLoyaltyData, loadClients]);
 
-  const fullBarberData = useMemo(() => ({
+  const fullBarberData = React.useMemo(() => ({
     ...barberData,
     appointments,
   }), [barberData, appointments]);
   
-  const handleAdminDataUpdate = useCallback(() => {
+  const handleAdminDataUpdate = React.useCallback(() => {
     onDataUpdate();
     loadAppointments();
     loadLoyaltyData();
     loadClients();
   }, [onDataUpdate, loadAppointments, loadLoyaltyData, loadClients]);
 
-  const financialSummary = useMemo(() => {
+  const financialSummary = React.useMemo(() => {
     return calculateFinancials(appointments);
   }, [appointments]);
 
@@ -1670,11 +1671,11 @@ const ProfileTab: React.FC<{
   setUploadFile: (file: File | null) => void;
   isUploading: boolean;
 }> = ({ barberData, onEdit, isEditing, editData, onSave, onCancel, onEditDataChange, uploadFile, setUploadFile, isUploading }) => {
-  const [isCopied, setIsCopied] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isCopied, setIsCopied] = React.useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (uploadFile) {
       const url = URL.createObjectURL(uploadFile);
       setPreviewUrl(url);
@@ -2054,10 +2055,10 @@ const GalleryTab: React.FC<{
   isUploading: boolean;
   onDataUpdate: () => void;
 }> = ({ images, barberId, onEdit, isEditing, editData, onSave, onCancel, onEditDataChange, uploadFile, setUploadFile, isUploading, onDataUpdate }) => {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   
-  useEffect(() => {
+  React.useEffect(() => {
     if (uploadFile) {
       const url = URL.createObjectURL(uploadFile);
       setPreviewUrl(url);
@@ -2192,14 +2193,14 @@ const AppointmentsTab: React.FC<{
   availability: Record<string, string[]>;
   barberData: BarberData;
 }> = ({ appointments, barberId, onDataUpdate, availability, barberData }) => {
-  const [view, setView] = useState<'list' | 'calendar'>('list');
-  const [filter, setFilter] = useState<'Todos' | 'Pendente' | 'Confirmado'>('Todos');
-  const [showRemindersModal, setShowRemindersModal] = useState(false);
+  const [view, setView] = React.useState<'list' | 'calendar'>('list');
+  const [filter, setFilter] = React.useState<'Todos' | 'Pendente' | 'Confirmado'>('Todos');
+  const [showRemindersModal, setShowRemindersModal] = React.useState(false);
   
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [currentDate, setCurrentDate] = React.useState(new Date());
+  const [selectedDate, setSelectedDate] = React.useState<string | null>(null);
 
-  const filteredAppointments = useMemo(() => appointments
+  const filteredAppointments = React.useMemo(() => appointments
     .filter(app => filter === 'Todos' || app.status === filter)
     .sort((a, b) => {
       const dateA = new Date(`${a.date}T${a.time}`);
@@ -2207,7 +2208,7 @@ const AppointmentsTab: React.FC<{
       return dateB.getTime() - dateA.getTime();
   }), [appointments, filter]);
   
-  const pendingReminders = useMemo(() => {
+  const pendingReminders = React.useMemo(() => {
     const now = new Date();
     return appointments.filter(app => {
       if (app.status !== 'Confirmado' || app.lembrete24henviado) {
@@ -2219,7 +2220,14 @@ const AppointmentsTab: React.FC<{
     });
   }, [appointments]);
 
-  const calendarData = useMemo(() => {
+  const appointmentsByDate = React.useMemo(() => {
+    return appointments.reduce((acc, app) => {
+        (acc[app.date] = acc[app.date] || []).push(app);
+        return acc;
+    }, {} as Record<string, Appointment[]>);
+  }, [appointments]);
+
+  const calendarData = React.useMemo(() => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -2242,7 +2250,7 @@ const AppointmentsTab: React.FC<{
     setSelectedDate(dateString);
   };
   
-  const selectedDateAvailability = useMemo(() => selectedDate ? (availability[selectedDate] || []).sort() : [], [selectedDate, availability]);
+  const selectedDateAvailability = React.useMemo(() => selectedDate ? (availability[selectedDate] || []).sort() : [], [selectedDate, availability]);
 
   return (
     <div className="space-y-6">
@@ -2381,18 +2389,62 @@ const AppointmentsTab: React.FC<{
               const dayNumber = day + 1;
               const date = new Date(calendarData.year, calendarData.month, dayNumber);
               const dateString = date.toISOString().split('T')[0];
-              const availableSlotsCount = availability[dateString]?.length || 0;
               const isToday = new Date().toISOString().split('T')[0] === dateString;
 
+              const availableSlotsCount = availability[dateString]?.length || 0;
+              const bookedSlotsCount = appointmentsByDate[dateString]?.length || 0;
+
+              let dayBgClass = 'bg-gray-700';
+              let dayTextColor = 'text-gray-500';
+              let hoverBgClass = 'hover:bg-gray-700';
+              let isDisabled = true;
+
+              if (bookedSlotsCount > 0) {
+                dayBgClass = 'bg-red-900';
+                hoverBgClass = 'hover:bg-red-800';
+                dayTextColor = 'text-white';
+                isDisabled = false;
+              } else if (availableSlotsCount > 0) {
+                dayBgClass = 'bg-green-900';
+                hoverBgClass = 'hover:bg-green-800';
+                dayTextColor = 'text-white';
+                isDisabled = false;
+              }
+
+              if (selectedDate === dateString) {
+                dayBgClass = 'bg-primary';
+                hoverBgClass = 'hover:bg-primary-dark';
+              } else if (isToday) {
+                dayBgClass += ' ring-2 ring-offset-2 ring-offset-gray-800 ring-cyan-400';
+              }
+
+              const infoContent = [];
+              if (bookedSlotsCount > 0) {
+                  infoContent.push(
+                      <span key="booked" className="text-xs font-semibold text-red-300">
+                          {bookedSlotsCount} agendado{bookedSlotsCount > 1 ? 's' : ''}
+                      </span>
+                  );
+              }
+              if (availableSlotsCount > 0) {
+                  infoContent.push(
+                      <span key="available" className="text-xs font-semibold text-green-300">
+                          {availableSlotsCount} livre{availableSlotsCount > 1 ? 's' : ''}
+                      </span>
+                  );
+              }
+
               return (
-                <button key={dayNumber} onClick={() => handleDateClick(dayNumber)}
-                  className={`flex flex-col items-center justify-center h-20 p-2 rounded-lg transition-colors text-white text-lg ${
-                    selectedDate === dateString ? 'bg-primary' : isToday ? 'bg-gray-600' : 'bg-gray-700 hover:bg-gray-600'
-                  } disabled:opacity-50 disabled:cursor-not-allowed`}
-                  disabled={availableSlotsCount === 0}
+                <button
+                  key={dayNumber}
+                  onClick={() => !isDisabled && handleDateClick(dayNumber)}
+                  className={`flex flex-col items-center justify-center h-24 p-2 rounded-lg transition-colors text-lg ${dayBgClass} ${hoverBgClass} disabled:opacity-50 disabled:cursor-not-allowed`}
+                  disabled={isDisabled}
                 >
-                  {dayNumber}
-                  {availableSlotsCount > 0 && <span className="block text-xs font-semibold text-green-300 mt-1">{availableSlotsCount} {availableSlotsCount === 1 ? 'horário' : 'horários'}</span>}
+                  <span className={`font-bold ${dayTextColor}`}>{dayNumber}</span>
+                  <div className="flex flex-col items-center mt-1 space-y-1">
+                      {infoContent}
+                  </div>
                 </button>
               );
             })}
@@ -2434,16 +2486,16 @@ const LoyaltyTab: React.FC<{
   onRefresh: () => void;
   shopName: string;
 }> = ({ barberId, clients, isLoading, onRefresh, shopName }) => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedClient, setSelectedClient] = useState<LoyaltyClient | null>(null);
-  const [isRedeemModalOpen, setIsRedeemModalOpen] = useState(false);
-  const [updatingClientId, setUpdatingClientId] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = React.useState('');
+  const [selectedClient, setSelectedClient] = React.useState<LoyaltyClient | null>(null);
+  const [isRedeemModalOpen, setIsRedeemModalOpen] = React.useState(false);
+  const [updatingClientId, setUpdatingClientId] = React.useState<string | null>(null);
 
-  const rewards = useMemo(() => [
+  const rewards = React.useMemo(() => [
     { stars: 5, description: 'Prêmio (Ex: Corte Grátis)' },
   ], []);
 
-  const filteredClients = useMemo(() => clients.filter(client =>
+  const filteredClients = React.useMemo(() => clients.filter(client =>
     client.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     client.clientWhatsapp.includes(searchTerm)
   ), [clients, searchTerm]);
@@ -2647,7 +2699,7 @@ const ClientFormModal: React.FC<{
   client?: Client | null;
   isLoading: boolean;
 }> = ({ isOpen, onClose, onSave, client, isLoading }) => {
-  const [formData, setFormData] = useState<ClientFormData>({
+  const [formData, setFormData] = React.useState<ClientFormData>({
     name: '',
     whatsapp: '',
     email: '',
@@ -2656,7 +2708,7 @@ const ClientFormModal: React.FC<{
     notes: '',
   });
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (client) {
       setFormData({
         name: client.name || '',
@@ -2726,13 +2778,13 @@ const ClientsTab: React.FC<{
   isLoading: boolean;
   onDataUpdate: () => void;
 }> = ({ barberId, clients, isLoading, onDataUpdate }) => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState<'name' | 'lastVisit' | 'totalVisits'>('name');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingClient, setEditingClient] = useState<Client | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
+  const [searchTerm, setSearchTerm] = React.useState('');
+  const [sortBy, setSortBy] = React.useState<'name' | 'lastVisit' | 'totalVisits'>('name');
+  const [isModalOpen, setIsModalOpen] = React.useState(false);
+  const [editingClient, setEditingClient] = React.useState<Client | null>(null);
+  const [isSaving, setIsSaving] = React.useState(false);
   
-  const clientStats: ClientStats = useMemo(() => {
+  const clientStats: ClientStats = React.useMemo(() => {
     const now = new Date();
     const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     
@@ -2749,7 +2801,7 @@ const ClientsTab: React.FC<{
     };
   }, [clients]);
 
-  const filteredAndSortedClients = useMemo(() => {
+  const filteredAndSortedClients = React.useMemo(() => {
     return clients
       .filter(c =>
         c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -2889,8 +2941,8 @@ const VisualsTab: React.FC<{
     onDataUpdate: () => void;
 }> = ({ barberData, onDataUpdate }) => {
     const defaultTheme = { primaryColor: '#4F46E5', secondaryColor: '#7C3AED' };
-    const [colors, setColors] = useState(barberData.profile.theme || defaultTheme);
-    const [isSaving, setIsSaving] = useState(false);
+    const [colors, setColors] = React.useState(barberData.profile.theme || defaultTheme);
+    const [isSaving, setIsSaving] = React.useState(false);
 
     const palettes = [
         { name: 'Índigo/Violeta', primary: '#4F46E5', secondary: '#7C3AED' },
@@ -2937,7 +2989,7 @@ const VisualsTab: React.FC<{
                 
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
                     {palettes.map(palette => (
-                        <button key={palette.name} onClick={() => setColors({ primary: palette.primary, secondary: palette.secondary })} className="bg-gray-700 p-3 rounded-lg text-center hover:bg-gray-600 transition-all">
+                        <button key={palette.name} onClick={() => setColors({ primaryColor: palette.primary, secondaryColor: palette.secondary })} className="bg-gray-700 p-3 rounded-lg text-center hover:bg-gray-600 transition-all">
                             <div className="h-10 rounded-md mb-2" style={{ background: `linear-gradient(to right, ${palette.primary}, ${palette.secondary})` }}></div>
                             <span className="text-sm">{palette.name}</span>
                         </button>
