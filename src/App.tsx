@@ -1,7 +1,8 @@
 
 
-// FIX: Changed React import to a namespace import (`import * as React from 'react'`) to resolve multiple 'Property does not exist on type JSX.IntrinsicElements' errors.
-import * as React from 'react';
+
+// FIX: Changed the React import from a namespace import (`* as React`) to a default import. This resolves numerous 'Property does not exist on type JSX.IntrinsicElements' errors by aligning with the project's likely TypeScript/Vite configuration, as seen in the working `index.tsx` file.
+import React from 'react';
 import type { Promotion, GalleryImage, Service, Appointment, LoyaltyClient, Client, ClientStats, ClientFormData, Transaction, Financials } from './types';
 import { FirestoreService, BarberData } from './firestoreService';
 import { auth } from './firebaseConfig';
@@ -3148,7 +3149,7 @@ const FinancialsTab: React.FC<{
     let start = new Date();
     switch (period) {
       case 'week':
-        start.setDate(end.getDate() - 6);
+        start.setDate(end.getDate() - 7);
         break;
       case 'month':
         start.setDate(1);
@@ -3209,9 +3210,10 @@ const FinancialsTab: React.FC<{
   }, [transactions]);
   
   const filteredTransactions = React.useMemo(() => {
-    if (transactionFilter === 'Todas') return transactions;
     const type = transactionFilter === 'Receitas' ? 'receita' : 'despesa';
-    return transactions.filter(t => t.type === type);
+    const sorted = transactions.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    if (transactionFilter === 'Todas') return sorted;
+    return sorted.filter(t => t.type === type);
   }, [transactions, transactionFilter]);
 
   const handleSaveExpense = async (expenseData: Omit<Transaction, 'id' | 'barberId' | 'createdAt' | 'type'>) => {
@@ -3229,6 +3231,13 @@ const FinancialsTab: React.FC<{
     }
   };
   
+  const summaryCards = [
+    { title: 'Receita Total', value: `R$ ${financials.totalRevenue.toFixed(2)}`, color: 'bg-green-500' },
+    { title: 'Despesas', value: `R$ ${financials.totalExpenses.toFixed(2)}`, color: 'bg-red-500' },
+    { title: 'Lucro Líquido', value: `R$ ${financials.netProfit.toFixed(2)}`, color: 'bg-blue-500', isNegative: financials.netProfit < 0 },
+    { title: 'Margem de Lucro', value: `${financials.profitMargin.toFixed(0)}%`, color: 'bg-purple-500', isNegative: financials.profitMargin < 0 }
+  ];
+
   if (isLoading) return <LoadingSpinner message="Carregando dados financeiros..." />;
 
   return (
@@ -3238,53 +3247,59 @@ const FinancialsTab: React.FC<{
       <div className="flex flex-wrap justify-between items-center gap-4">
         <div>
           <h2 className="text-3xl font-bold">Financeiro</h2>
-          <p className="text-gray-400">Controle de receitas e despesas.</p>
+          <p className="text-gray-400">Visão geral das suas finanças.</p>
         </div>
-        <div className="flex items-center gap-2">
-            <button className="bg-gray-700 text-white px-4 py-2 rounded-lg text-sm">Exportar</button>
-            <button onClick={() => setIsModalOpen(true)} className="bg-gradient-to-r from-purple-600 to-blue-500 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2">
-                <PlusIcon className="h-4 w-4"/> Nova Despesa
-            </button>
-        </div>
+        <button onClick={() => setIsModalOpen(true)} className="bg-primary text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 hover:bg-primary-dark transition-colors">
+            <PlusIcon className="h-4 w-4"/> Nova Despesa
+        </button>
       </div>
       
       <div className="bg-gray-800 p-2 rounded-lg flex flex-wrap gap-2">
           {(['week', 'month', 'quarter', 'year'] as const).map(p => (
-              <button key={p} onClick={() => setPeriod(p)} className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${period === p ? 'bg-purple-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}>
-                  { {week: 'Última Semana', month: 'Este Mês', quarter: 'Último Trimestre', year: 'Este Ano'}[p] }
+              <button key={p} onClick={() => setPeriod(p)} className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors w-full sm:w-auto flex-1 ${period === p ? 'bg-primary text-white' : 'text-gray-300 hover:bg-gray-700'}`}>
+                  { {week: 'Semana', month: 'Mês', quarter: 'Trimestre', year: 'Ano'}[p] }
               </button>
           ))}
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-gray-800 p-6 rounded-lg flex items-start gap-4"><div className="bg-green-500/20 p-3 rounded-full"><TrendingUpIcon className="text-green-400"/></div><div><p className="text-sm text-gray-400">Receita Total</p><p className="text-2xl font-bold">R$ {financials.totalRevenue.toFixed(2)}</p></div></div>
-        <div className="bg-gray-800 p-6 rounded-lg flex items-start gap-4"><div className="bg-red-500/20 p-3 rounded-full"><ArrowSmDownIcon className="text-red-400"/></div><div><p className="text-sm text-gray-400">Despesas</p><p className="text-2xl font-bold">R$ {financials.totalExpenses.toFixed(2)}</p></div></div>
-        <div className="bg-gray-800 p-6 rounded-lg flex items-start gap-4"><div className="bg-blue-500/20 p-3 rounded-full"><ShopIcon className="text-blue-400"/></div><div><p className="text-sm text-gray-400">Lucro Líquido</p><p className="text-2xl font-bold">R$ {financials.netProfit.toFixed(2)}</p></div></div>
-        <div className="bg-gray-800 p-6 rounded-lg flex items-start gap-4"><div className="bg-purple-500/20 p-3 rounded-full"><StarIcon className="text-purple-400"/></div><div><p className="text-sm text-gray-400">Margem de Lucro</p><p className="text-2xl font-bold">{financials.profitMargin.toFixed(0)}%</p></div></div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {summaryCards.map(card => (
+            <div key={card.title} className="bg-gray-800 p-4 rounded-lg flex items-center gap-4">
+                <span className={`flex-shrink-0 w-3 h-3 rounded-full ${card.color}`}></span>
+                <div>
+                    <p className="text-sm text-gray-400">{card.title}</p>
+                    <p className={`text-2xl font-bold ${card.isNegative ? 'text-red-400' : 'text-white'}`}>{card.value}</p>
+                </div>
+            </div>
+        ))}
       </div>
       
       <div className="bg-gray-800 p-6 rounded-lg">
-          <h3 className="text-xl font-bold mb-4">Transações</h3>
-          <div className="flex gap-2 mb-4 border-b border-gray-700 pb-4">
-              {(['Todas', 'Receitas', 'Despesas'] as const).map(f => (
-                  <button key={f} onClick={() => setTransactionFilter(f)} className={`px-3 py-1 text-sm rounded-full ${transactionFilter === f ? 'bg-primary text-white' : 'bg-gray-700 text-gray-300'}`}>{f}</button>
-              ))}
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4">
+              <h3 className="text-2xl font-anton text-white tracking-wider uppercase">Transações</h3>
+              <div className="flex items-center gap-2 bg-gray-900/50 p-1 rounded-lg">
+                  {(['Todas', 'Receitas', 'Despesas'] as const).map(f => (
+                      <button key={f} onClick={() => setTransactionFilter(f)} className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-colors w-full sm:w-auto flex-1 ${transactionFilter === f ? 'bg-primary text-white' : 'text-transparent text-gray-300 hover:bg-gray-700'}`}>
+                          {f}
+                      </button>
+                  ))}
+              </div>
           </div>
-          <div className="space-y-3 max-h-96 overflow-y-auto">
+          <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
               {filteredTransactions.length > 0 ? filteredTransactions.map(t => (
                   <div key={t.id} className="flex justify-between items-center bg-gray-700/50 p-3 rounded-md">
                       <div>
-                          <p className="font-semibold">{t.description}</p>
+                          <p className="font-bold text-white">{t.description}</p>
                           <p className="text-xs text-gray-400">{new Date(t.date).toLocaleDateString('pt-BR', {timeZone: 'UTC'})} - {t.paymentMethod || t.category}</p>
                       </div>
-                      <p className={`font-bold text-lg ${t.type === 'receita' ? 'text-green-400' : 'text-red-400'}`}>
+                      <p className={`font-bold text-lg whitespace-nowrap pl-4 ${t.type === 'receita' ? 'text-green-400' : 'text-red-400'}`}>
                           {t.type === 'receita' ? '+' : '-'} R$ {t.amount.toFixed(2)}
                       </p>
                   </div>
               )) : (
                   <div className="text-center py-10 text-gray-500">
                       <CalendarIcon className="h-12 w-12 mx-auto mb-2" />
-                      <p>Nenhuma transação encontrada</p>
+                      <p>Nenhuma transação neste período</p>
                   </div>
               )}
           </div>
