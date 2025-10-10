@@ -1,6 +1,4 @@
 
-
-
 // FIX: Changed the React import from a namespace import (`* as React`) to a default import. This resolves numerous 'Property does not exist on type JSX.IntrinsicElements' errors by aligning with the project's likely TypeScript/Vite configuration, as seen in the working `index.tsx` file.
 import React from 'react';
 import type { Promotion, GalleryImage, Service, Appointment, LoyaltyClient, Client, ClientStats, ClientFormData, Transaction, Financials } from './types';
@@ -3279,7 +3277,7 @@ const FinancialsTab: React.FC<{
               <h3 className="text-2xl font-anton text-white tracking-wider uppercase">Transações</h3>
               <div className="flex items-center gap-2 bg-gray-900/50 p-1 rounded-lg">
                   {(['Todas', 'Receitas', 'Despesas'] as const).map(f => (
-                      <button key={f} onClick={() => setTransactionFilter(f)} className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-colors w-full sm:w-auto flex-1 ${transactionFilter === f ? 'bg-primary text-white' : 'text-transparent text-gray-300 hover:bg-gray-700'}`}>
+                      <button key={f} onClick={() => setTransactionFilter(f)} className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-colors w-full sm:w-auto flex-1 ${transactionFilter === f ? 'bg-primary text-white' : 'text-gray-300 hover:bg-gray-700'}`}>
                           {f}
                       </button>
                   ))}
