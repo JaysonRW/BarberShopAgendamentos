@@ -2,7 +2,7 @@
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/firestore';
 import { db, storage, auth } from './firebaseConfig';
-import type { Promotion, GalleryImage, Service, Appointment, LoyaltyClient, Client, ClientFormData } from './types';
+import type { Promotion, GalleryImage, Service, Appointment, LoyaltyClient, Client, ClientFormData, Transaction } from './types';
 
 // Interface para dados completos do barbeiro
 export interface BarberData {
@@ -496,6 +496,25 @@ export class FirestoreService {
                             transaction.update(clientManagementRef, updateData);
                         }
                     }
+                    
+                    // Lógica Financeira (NOVO)
+                    const servicePrice = appointmentData.service?.price || 0;
+                    if (servicePrice > 0) {
+                      const transactionRef = barberRef.collection('transactions').doc();
+                      const newTransaction: Omit<Transaction, 'id'> = {
+                        barberId,
+                        type: 'receita',
+                        amount: servicePrice,
+                        description: `Serviço: ${appointmentData.service?.name} - Cliente: ${appointmentData.clientName}`,
+                        category: 'Serviços',
+                        paymentMethod: appointmentData.paymentMethod,
+                        date: appointmentData.date,
+                        clientId: normalizedWhatsapp,
+                        appointmentId: appointmentId,
+                        createdAt: new Date(),
+                      };
+                      transaction.set(transactionRef, newTransaction);
+                    }
                 }
 
                 // Atualizar o status do agendamento
@@ -802,6 +821,33 @@ export class FirestoreService {
         alert(typedError.message || 'Erro desconhecido');
         return false;
       }
+    });
+  }
+  
+  // --- MÉTODOS FINANCEIROS ---
+  static async getTransactions(barberId: string, startDate: Date, endDate: Date): Promise<Transaction[]> {
+    return this.withAuthentication(barberId, async () => {
+      const startStr = startDate.toISOString().split('T')[0];
+      const endStr = endDate.toISOString().split('T')[0];
+      
+      const snapshot = await db.collection('barbers').doc(barberId).collection('transactions')
+        .where('date', '>=', startStr)
+        .where('date', '<=', endStr)
+        .orderBy('date', 'desc')
+        .get();
+        
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction));
+    });
+  }
+
+  static async addTransaction(barberId: string, transactionData: Omit<Transaction, 'id' | 'barberId' | 'createdAt'>): Promise<string> {
+    return this.withAuthentication(barberId, async () => {
+      const docRef = await db.collection('barbers').doc(barberId).collection('transactions').add({
+        ...transactionData,
+        barberId,
+        createdAt: new Date(),
+      });
+      return docRef.id;
     });
   }
 }

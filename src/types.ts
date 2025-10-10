@@ -72,3 +72,29 @@ export interface ClientStats {
   activeClients: number;
   avgVisits: number;
 }
+
+
+// --- NOVOS TIPOS PARA GESTÃO FINANCEIRA ---
+export interface Transaction {
+  id: string;
+  barberId: string;
+  type: 'receita' | 'despesa';
+  amount: number;
+  description: string;
+  category?: string;
+  paymentMethod?: string;
+  date: string; // ISO string 'YYYY-MM-DD'
+  clientId?: string;
+  appointmentId?: string;
+  createdAt: any;
+}
+
+export interface Financials {
+  totalRevenue: number;
+  totalExpenses: number;
+  netProfit: number;
+  profitMargin: number;
+  pendingRevenue: number;
+  revenueByPaymentMethod: Record<string, number>;
+  flow: { date: string, revenue: number, expense: number }[]; // For chart
+}
