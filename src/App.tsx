@@ -1,6 +1,8 @@
 
-// FIX: Changed the React import from a namespace import (`* as React`) to a default import. This resolves numerous 'Property does not exist on type JSX.IntrinsicElements' errors by aligning with the project's likely TypeScript/Vite configuration, as seen in the working `index.tsx` file.
-import React from 'react';
+
+
+// FIX: Changed the React import to a namespace import (`import * as React from 'react'`). The numerous 'Property ... does not exist on type JSX.IntrinsicElements' errors indicate that TypeScript's JSX type definitions are not being resolved correctly. While a default import (`import React from 'react'`) is common, a namespace import can resolve this issue in projects with specific TypeScript configurations (like `esModuleInterop: false`) or when other imports cause type conflicts.
+import * as React from 'react';
 import type { Promotion, GalleryImage, Service, Appointment, LoyaltyClient, Client, ClientStats, ClientFormData, Transaction, Financials } from './types';
 import { FirestoreService, BarberData } from './firestoreService';
 import { auth } from './firebaseConfig';
@@ -480,6 +482,7 @@ const ChevronLeftIcon: React.FC<{ className?: string }> = ({ className = "h-6 w-
 const ChevronRightIcon: React.FC<{ className?: string }> = ({ className = "h-6 w-6" }) => <Icon className={className} path="M5 19l7-7-7-7" />;
 const UploadIcon: React.FC<{className?: string}> = ({className = "h-5 w-5"}) => <Icon className={className} path="M4 12a1 1 0 011 1v3a1 1 0 001 1h8a1 1 0 001-1v-3a1 1 0 112 0v3a3 3 0 01-3 3H6a3 3 0 01-3-3v-3a1 1 0 011-1zm5-10a1 1 0 011 1v7.586l2.293-2.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L9 10.586V3a1 1 0 011-1z" />;
 const PlusIcon: React.FC<{ className?: string }> = ({ className = "h-5 w-5" }) => <Icon className={className} path="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" />;
+const SyncIcon: React.FC<{className?: string}> = ({className = "h-5 w-5"}) => <Icon className={className} path="M10 3a7 7 0 015.65 11.35l1.42 1.42A9 9 0 109 19v-2a7 7 0 111-7H8l3 3 3-3h-2a5 5 0 10-4.53 7.59L5.9 16.17A7 7 0 0110 3z" />;
 
 // Ícones específicos
 const WhatsAppIcon: React.FC<{className?: string}> = ({className = "h-5 w-5 mr-2"}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 20 20" fill="currentColor"><path d="M10.3 2.2C5.7 2.2 2 5.9 2 10.5c0 1.6.4 3.1 1.3 4.4L2 20l5.2-1.3c1.3.8 2.8 1.2 4.4 1.2 4.6 0 8.3-3.7 8.3-8.3S14.9 2.2 10.3 2.2zM10.3 18.1c-1.4 0-2.8-.4-4-1.2l-.3-.2-3 .8.8-2.9-.2-.3c-.8-1.2-1.3-2.7-1.3-4.2 0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5-2.9 6.5-6.5 6.5zm3.2-4.9c-.2-.1-1.1-.5-1.3-.6-.2-.1-.3-.1-.5.1s-.5.6-.6.7c-.1.1-.2.2-.4.1-.2 0-.8-.3-1.5-.9s-1.1-1.3-1.2-1.5c-.1-.2 0-.3.1-.4l.3-.3c.1-.1.1-.2.2-.3.1-.1 0-.3-.1-.4-.1-.1-.5-1.1-.6-1.5-.2-.4-.3-.3-.5-.3h-.4c-.2 0-.4.1-.6.3s-.7.7-.7 1.6.7 1.9 1.4 2.6c1.1 1.1 2.1 1.7 3.3 1.7.2 0 .4 0 .6-.1.6-.2 1.1-.7 1.2-1.3.1-.6.1-1.1 0-1.2-.1-.1-.3-.2-.5-.3z" /></svg>;
@@ -3140,6 +3143,7 @@ const FinancialsTab: React.FC<{
   const [isLoading, setIsLoading] = React.useState(true);
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
+  const [isSyncing, setIsSyncing] = React.useState(false);
   const [transactionFilter, setTransactionFilter] = React.useState<'Todas' | 'Receitas' | 'Despesas'>('Todas');
 
   const { startDate, endDate } = React.useMemo(() => {
@@ -3228,6 +3232,27 @@ const FinancialsTab: React.FC<{
       setIsSaving(false);
     }
   };
+
+  const handleSync = async () => {
+    if (!confirm('Isso irá verificar os agendamentos confirmados no período selecionado e criar transações de receita para aqueles que ainda não foram registrados. Deseja continuar?')) {
+        return;
+    }
+    setIsSyncing(true);
+    try {
+        const newTransactionsCount = await FirestoreService.synchronizeFinancialsFromAppointments(barberId, startDate, endDate);
+        if (newTransactionsCount > 0) {
+            alert(`Sincronização concluída! ${newTransactionsCount} nova(s) transação(ões) de agendamento foram adicionadas.`);
+            loadData(); // Recarrega os dados financeiros
+        } else {
+            alert('Sincronização concluída. Nenhum agendamento novo para registrar.');
+        }
+    } catch (error) {
+        console.error("Erro ao sincronizar agendamentos:", error);
+        alert("Ocorreu um erro durante a sincronização. O Firebase pode precisar de um índice. Verifique o console para mais detalhes.");
+    } finally {
+        setIsSyncing(false);
+    }
+  };
   
   const summaryCards = [
     { title: 'Receita Total', value: `R$ ${financials.totalRevenue.toFixed(2)}`, color: 'bg-green-500' },
@@ -3247,9 +3272,19 @@ const FinancialsTab: React.FC<{
           <h2 className="text-3xl font-bold">Financeiro</h2>
           <p className="text-gray-400">Visão geral das suas finanças.</p>
         </div>
-        <button onClick={() => setIsModalOpen(true)} className="bg-primary text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 hover:bg-primary-dark transition-colors">
-            <PlusIcon className="h-4 w-4"/> Nova Despesa
-        </button>
+        <div className="flex items-center gap-2">
+            <button 
+                onClick={handleSync} 
+                disabled={isSyncing} 
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 hover:bg-blue-700 transition-colors disabled:bg-gray-500"
+                title="Sincronizar agendamentos confirmados que ainda não viraram transação de receita."
+            >
+                <SyncIcon className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`}/> {isSyncing ? 'Sincronizando...' : 'Sincronizar'}
+            </button>
+            <button onClick={() => setIsModalOpen(true)} className="bg-primary text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 hover:bg-primary-dark transition-colors">
+                <PlusIcon className="h-4 w-4"/> Nova Despesa
+            </button>
+        </div>
       </div>
       
       <div className="bg-gray-800 p-2 rounded-lg flex flex-wrap gap-2">

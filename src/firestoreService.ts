@@ -850,4 +850,74 @@ export class FirestoreService {
       return docRef.id;
     });
   }
+
+  static async synchronizeFinancialsFromAppointments(barberId: string, startDate: Date, endDate: Date): Promise<number> {
+    return this.withAuthentication(barberId, async () => {
+      const startStr = startDate.toISOString().split('T')[0];
+      const endStr = endDate.toISOString().split('T')[0];
+      
+      const barberRef = db.collection('barbers').doc(barberId);
+
+      // Obter agendamentos confirmados no período
+      const appointmentsSnapshot = await barberRef.collection('appointments')
+        .where('date', '>=', startStr)
+        .where('date', '<=', endStr)
+        .where('status', '==', 'Confirmado')
+        .get();
+        
+      const appointmentsToSync = appointmentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Appointment));
+
+      if (appointmentsToSync.length === 0) {
+        return 0; // Nenhum agendamento para verificar
+      }
+
+      // Obter transações existentes com appointmentId no período
+      const transactionsSnapshot = await barberRef.collection('transactions')
+        .where('date', '>=', startStr)
+        .where('date', '<=', endStr)
+        .get();
+
+      const existingTransactionAppIds = new Set(
+          transactionsSnapshot.docs
+              .map(doc => doc.data().appointmentId)
+              .filter(id => id) // Filtra IDs nulos ou indefinidos
+      );
+
+      // Filtrar agendamentos que ainda não têm uma transação
+      const appointmentsWithoutTransaction = appointmentsToSync.filter(app => !existingTransactionAppIds.has(app.id));
+
+      if (appointmentsWithoutTransaction.length === 0) {
+        return 0; // Todos os agendamentos já estão registrados
+      }
+
+      // Batch write para novas transações
+      const batch = db.batch();
+      
+      appointmentsWithoutTransaction.forEach(app => {
+        const servicePrice = app.service?.price || 0;
+        if (servicePrice > 0) {
+          const transactionRef = barberRef.collection('transactions').doc();
+          const normalizedWhatsapp = app.clientWhatsapp.replace(/\D/g, '');
+          const newTransaction: Omit<Transaction, 'id'> = {
+            barberId,
+            type: 'receita',
+            amount: servicePrice,
+            description: `Serviço: ${app.service?.name || 'N/A'} - Cliente: ${app.clientName}`,
+            category: 'Serviços',
+            paymentMethod: app.paymentMethod,
+            date: app.date,
+            clientId: normalizedWhatsapp,
+            appointmentId: app.id,
+            createdAt: new Date(),
+          };
+          batch.set(transactionRef, newTransaction);
+        }
+      });
+
+      await batch.commit();
+      
+      console.log(`✅ Sincronizado com sucesso. ${appointmentsWithoutTransaction.length} novas transações criadas.`);
+      return appointmentsWithoutTransaction.length;
+    });
+  }
 }
