@@ -16,8 +16,8 @@ export default defineConfig(({ mode }) => {
       },
       resolve: {
         alias: {
-          // FIX: Use `process.cwd()` to resolve the path alias. This avoids TypeScript type errors related to missing Node.js definitions for `__dirname`.
-          '@': path.resolve(process.cwd(), '.'),
+          // FIX: Use `path.resolve('.')` to resolve the path alias. This avoids TypeScript type errors related to missing Node.js definitions for globals like `__dirname` or `process.cwd()`.
+          '@': path.resolve('.'),
         }
       }
     };

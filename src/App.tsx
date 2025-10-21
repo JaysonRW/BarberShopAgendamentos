@@ -1,6 +1,7 @@
 
 
 
+
 // FIX: Changed the React import to a namespace import (`import * as React from 'react'`). The numerous 'Property ... does not exist on type JSX.IntrinsicElements' errors indicate that TypeScript's JSX type definitions are not being resolved correctly. While a default import (`import React from 'react'`) is common, a namespace import can resolve this issue in projects with specific TypeScript configurations (like `esModuleInterop: false`) or when other imports cause type conflicts.
 import * as React from 'react';
 import type { Promotion, GalleryImage, Service, Appointment, LoyaltyClient, Client, ClientStats, ClientFormData, Transaction, Financials } from './types';
@@ -953,13 +954,14 @@ const BookingForm: React.FC<{
                   key={date} 
                   type="button" 
                   onClick={() => handleInputChange('date', date)}
-                  className={`p-3 border rounded-lg text-center transition duration-300 ${
+                  className={`p-2 border rounded-lg text-center transition duration-300 flex flex-col justify-center items-center h-16 ${
                     formData.date === date 
                       ? 'bg-primary text-white shadow-md' 
                       : 'bg-gray-100 text-gray-700 hover:bg-red-200'
                   }`}
                 >
-                  {new Date(date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', timeZone: 'UTC'})}
+                  <span className="text-xs font-bold uppercase">{new Date(date).toLocaleDateString('pt-BR', { weekday: 'short', timeZone: 'UTC' }).replace('.', '')}</span>
+                  <span className="text-sm">{new Date(date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', timeZone: 'UTC' })}</span>
                 </button>
               ))}
             </div>
@@ -2345,7 +2347,7 @@ const AppointmentsTab: React.FC<{
                         <CalendarIcon className="h-5 w-5 text-gray-400 mt-1" />
                         <div>
                           <p className="text-xs text-gray-400">Data & Hora</p>
-                          <p className="font-semibold text-white">{new Date(appointment.date).toLocaleDateString('pt-BR', {timeZone: 'UTC'})} às {appointment.time}</p>
+                          <p className="font-semibold text-white capitalize">{new Date(appointment.date).toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' })} às {appointment.time}</p>
                         </div>
                       </div>
                       <div className="flex items-start gap-3">
