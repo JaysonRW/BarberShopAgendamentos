@@ -1,0 +1,10 @@
+export { default as DashboardTab } from './DashboardTab';
+export { default as ProfileTab } from './ProfileTab';
+export { default as ServicesTab } from './ServicesTab';
+export { PromotionsTab } from './PromotionsTab';
+export { GalleryTab } from './GalleryTab';
+export { AppointmentsTab } from './AppointmentsTab';
+export { LoyaltyTab } from './LoyaltyTab';
+export { ClientsTab } from './ClientsTab';
+export { VisualsTab } from './VisualsTab';
+export { FinancialsTab } from './FinancialsTab';

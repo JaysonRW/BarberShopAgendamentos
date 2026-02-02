@@ -4,18 +4,55 @@ export interface Promotion {
   id: string;
   title: string;
   description: string;
+  discount?: number;
+  validUntil?: Date;
+  isActive?: boolean;
 }
 
 export interface GalleryImage {
   id: string;
   src: string;
   alt: string;
+  createdAt?: any;
 }
 
 export interface Service {
   id: string;
   name: string;
   price: number;
+  duration?: number;
+  isActive?: boolean;
+}
+
+export interface BarberProfile {
+  shopName: string;
+  slug: string;
+  location: string;
+  whatsappNumber: string;
+  logoUrl?: string;
+  email?: string;
+  theme?: {
+    primaryColor: string;
+    secondaryColor: string;
+  };
+  isActive: boolean;
+  userID: string;
+  createdAt?: any;
+  updatedAt?: any;
+}
+
+export interface Availability {
+  [key: string]: string[];
+}
+
+export interface BarberData {
+  id: string;
+  profile: BarberProfile;
+  availability: Availability;
+  services: Service[];
+  promotions: Promotion[];
+  galleryImages: GalleryImage[];
+  appointments: Appointment[]; // Opcional ou carregado sob demanda
 }
 
 export interface Appointment {
@@ -97,4 +134,12 @@ export interface Financials {
   pendingRevenue: number;
   revenueByPaymentMethod: Record<string, number>;
   flow: { date: string, revenue: number, expense: number }[]; // For chart
+}
+
+export interface SignUpData {
+  email: string;
+  pass: string;
+  shopName: string;
+  location: string;
+  whatsappNumber: string;
 }
