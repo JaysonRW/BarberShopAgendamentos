@@ -1,5 +1,37 @@
 # Registro de Alterações (Step-by-Step)
 
+## [2026-02-02] - Correção dos Filtros Financeiros e Visibilidade de Transações Futuras
+**Autor:** Trae AI (Assistente)
+
+### Descrição
+Correção na lógica de filtros de data na aba Financeiro (`FinancialsTab.tsx`) para resolver o problema de transações futuras não aparecerem e filtros (Mês, Ano) não abrangerem todo o período.
+
+### Arquivos Alterados
+- **`src/components/admin/tabs/FinancialsTab.tsx`**:
+  - Ajustada a lógica de cálculo de `startDate` e `endDate` no `useMemo`.
+  - **Correção Mês/Ano/Trimestre**: Agora os filtros cobrem do dia 1º até o **último dia** do período (ex: 31/12), em vez de parar no dia atual ("hoje").
+  - **Correção Transações Futuras**: Como o `endDate` agora vai até o fim do período, lançamentos futuros (ex: despesa agendada para dia 10 quando hoje é dia 02) aparecem corretamente na lista.
+
+## [2026-02-02] - Correção das Regras de Segurança (Firestore Rules)
+**Autor:** Trae AI (Assistente)
+
+### Descrição
+Atualização crítica no arquivo `firestore.rules` para resolver erros de permissão (`FirebaseError: Missing or insufficient permissions`) relatados em produção (Vercel).
+
+### Alterações Realizadas
+- **`firestore.rules`**:
+  - Definidas permissões explícitas de **leitura pública** para:
+    - Perfil da barbearia (`barbers/{barberId}`).
+    - Serviços (`services`).
+    - Galeria (`gallery`).
+    - Promoções (`promotions`).
+  - Mantida restrição de escrita apenas para o dono (barbeiro autenticado).
+  - Permitida criação pública de agendamentos (`appointments`), mas leitura restrita ao dono.
+  - Regra de `loyaltyClients` ajustada para permitir acesso a barbeiros autenticados.
+
+### Ação Necessária (Manual)
+As regras definidas neste arquivo **devem ser copiadas e coladas no Console do Firebase** (Firestore Database > Aba "Regras") para terem efeito em produção, pois o deploy automático pode não estar configurado.
+
 ## [2026-02-02] - Correção da API do Firebase Storage
 **Autor:** Trae AI (Assistente)
 

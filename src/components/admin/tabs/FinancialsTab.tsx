@@ -22,23 +22,38 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = ({ barberId, onDataUp
   const [transactionFilter, setTransactionFilter] = React.useState<'Todas' | 'Receitas' | 'Despesas'>('Todas');
 
   const { startDate, endDate } = React.useMemo(() => {
-    const end = new Date();
-    let start = new Date();
+    const now = new Date();
+    let start = new Date(now);
+    let end = new Date(now);
+
     switch (period) {
       case 'week':
-        start.setDate(end.getDate() - 7);
+        // Início da semana (Domingo)
+        const day = start.getDay();
+        const diff = start.getDate() - day;
+        start.setDate(diff);
+        // Fim da semana (Sábado)
+        end.setDate(start.getDate() + 6);
         break;
       case 'month':
-        start.setDate(1);
+        start.setDate(1); // Dia 1 do mês atual
+        end = new Date(start.getFullYear(), start.getMonth() + 1, 0); // Último dia do mês atual
         break;
       case 'quarter':
-        start.setMonth(Math.floor(start.getMonth() / 3) * 3, 1);
+        const currentQuarter = Math.floor(start.getMonth() / 3);
+        start.setMonth(currentQuarter * 3, 1); // Dia 1 do primeiro mês do trimestre
+        end = new Date(start.getFullYear(), start.getMonth() + 3, 0); // Último dia do último mês do trimestre
         break;
       case 'year':
-        start.setMonth(0, 1);
+        start.setMonth(0, 1); // 1 de Janeiro
+        end.setMonth(11, 31); // 31 de Dezembro
         break;
     }
+    
+    // Ajustar horas para garantir cobertura total do dia na comparação (embora a query use YYYY-MM-DD)
     start.setHours(0, 0, 0, 0);
+    end.setHours(23, 59, 59, 999);
+    
     return { startDate: start, endDate: end };
   }, [period]);
 
