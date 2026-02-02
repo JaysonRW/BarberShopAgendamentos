@@ -70,7 +70,7 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = ({ barberId, onDataUp
       revenueByPaymentMethod: {}, flow: [], pendingRevenue: 0
     };
 
-    transactions.forEach(t => {
+    (transactions || []).forEach(t => {
       if (t.type === 'receita') {
         summary.totalRevenue += t.amount;
         if (t.paymentMethod) {
@@ -88,7 +88,7 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = ({ barberId, onDataUp
   
   const filteredTransactions = React.useMemo(() => {
     const type = transactionFilter === 'Receitas' ? 'receita' : 'despesa';
-    const sorted = transactions.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const sorted = (transactions || []).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     if (transactionFilter === 'Todas') return sorted;
     return sorted.filter(t => t.type === type);
   }, [transactions, transactionFilter]);

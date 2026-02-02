@@ -183,6 +183,20 @@ export class BarberService {
     return finalSlug;
   }
 
+  static async create(data: { id: string; profile: BarberProfile; promotions: any[]; galleryImages: any[]; services: any[]; appointments: any[]; availability: any }) {
+    try {
+      await setDoc(doc(db, 'barbers', data.id), {
+        profile: data.profile,
+        availability: data.availability,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+    } catch (error) {
+      console.error('Erro ao criar barbearia:', error);
+      throw error;
+    }
+  }
+
   static async createNew(userId: string, barberData: { shopName: string; location: string; whatsappNumber: string; email: string; }): Promise<string | null> {
     try {
       const baseSlug = barberData.shopName;

@@ -22,13 +22,13 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({ barberId, clients, isLoa
     const now = new Date();
     const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     
-    const newThisMonth = clients.filter(c => c.createdAt && c.createdAt.toDate() >= firstDayOfMonth).length;
-    const activeClients = clients.filter(c => c.totalVisits > 0).length;
-    const totalVisits = clients.reduce((sum, c) => sum + c.totalVisits, 0);
+    const newThisMonth = (clients || []).filter(c => c.createdAt && c.createdAt.toDate() >= firstDayOfMonth).length;
+    const activeClients = (clients || []).filter(c => c.totalVisits > 0).length;
+    const totalVisits = (clients || []).reduce((sum, c) => sum + c.totalVisits, 0);
     const avgVisits = activeClients > 0 ? totalVisits / activeClients : 0;
 
     return {
-      totalClients: clients.length,
+      totalClients: (clients || []).length,
       newThisMonth,
       activeClients,
       avgVisits: parseFloat(avgVisits.toFixed(1)),
@@ -36,7 +36,7 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({ barberId, clients, isLoa
   }, [clients]);
 
   const filteredAndSortedClients = React.useMemo(() => {
-    return clients
+    return (clients || [])
       .filter(c =>
         c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         c.whatsapp.includes(searchTerm)

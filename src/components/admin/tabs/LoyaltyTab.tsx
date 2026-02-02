@@ -21,7 +21,7 @@ export const LoyaltyTab: React.FC<LoyaltyTabProps> = ({ barberId, clients, isLoa
     { stars: 5, description: 'Prêmio (Ex: Corte Grátis)' },
   ], []);
 
-  const filteredClients = React.useMemo(() => clients.filter(client =>
+  const filteredClients = React.useMemo(() => (clients || []).filter(client =>
     client.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     client.clientWhatsapp.includes(searchTerm)
   ), [clients, searchTerm]);

@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { auth } from './firebaseConfig';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { BarberService } from './firestoreService';
 import { LoadingSpinner } from './components/common/LoadingSpinner';
 import { NotFound } from './components/common/NotFound';
@@ -16,7 +17,7 @@ import { LoginModal } from './components/auth/LoginModal';
 import { UnauthorizedAccess } from './components/auth/UnauthorizedAccess';
 import { AdminPanel } from './components/admin/AdminPanel';
 import { scrollToSection } from './utils/ui';
-import type { BarberData } from './types';
+import type { BarberData, SignUpData } from './types';
 
 const App: React.FC = () => {
   const [slug, setSlug] = React.useState<string>('');
@@ -27,6 +28,56 @@ const App: React.FC = () => {
   const [currentUser, setCurrentUser] = React.useState<any>(null);
   const [authLoading, setAuthLoading] = React.useState(true);
   const [showLoginModal, setShowLoginModal] = React.useState(false);
+  const [authError, setAuthError] = React.useState('');
+
+  const handleLogin = async (email: string, pass: string) => {
+    try {
+      setAuthError('');
+      await signInWithEmailAndPassword(auth, email, pass);
+      setShowLoginModal(false);
+    } catch (err: any) {
+      console.error("Login error:", err);
+      let msg = "Erro ao fazer login.";
+      if (err.code === 'auth/user-not-found') msg = "Usuário não encontrado.";
+      if (err.code === 'auth/wrong-password') msg = "Senha incorreta.";
+      if (err.code === 'auth/invalid-email') msg = "Email inválido.";
+      setAuthError(msg);
+    }
+  };
+
+  const handleSignUp = async (data: SignUpData) => {
+    try {
+      setAuthError('');
+      const userCred = await createUserWithEmailAndPassword(auth, data.email, data.pass);
+      
+      // Criar perfil do barbeiro
+      await BarberService.create({
+        id: userCred.user.uid,
+        profile: {
+          shopName: data.shopName,
+          slug: data.shopName.toLowerCase().replace(/ /g, '-').replace(/[^\w-]/g, ''),
+          location: data.location,
+          whatsappNumber: data.whatsappNumber,
+          isActive: true,
+          userID: userCred.user.uid,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        },
+        promotions: [],
+        galleryImages: [],
+        services: [],
+        appointments: [],
+        availability: {}
+      });
+      
+      setShowLoginModal(false);
+      // Redirecionar ou recarregar para pegar o novo slug
+      window.location.href = `/${data.shopName.toLowerCase().replace(/ /g, '-').replace(/[^\w-]/g, '')}`;
+    } catch (err: any) {
+      console.error("Signup error:", err);
+      setAuthError(err.message || "Erro ao criar conta.");
+    }
+  };
 
   // Detectar slug da URL
   React.useEffect(() => {
@@ -125,7 +176,7 @@ const App: React.FC = () => {
     return (
       <AdminPanel 
         barberData={barberData} 
-        onLogout={() => auth.signOut()} 
+        onLogout={() => signOut(auth)} 
         onDataUpdate={loadBarberData} 
       />
     );
@@ -174,15 +225,20 @@ const App: React.FC = () => {
       {showLoginModal && (
         <LoginModal 
           onClose={() => setShowLoginModal(false)}
-          onLoginSuccess={() => setShowLoginModal(false)}
+          onLogin={handleLogin}
+          onSignUp={handleSignUp}
+          error={authError}
+          clearError={() => setAuthError('')}
         />
       )}
       
       {/* Se logado mas tentando acessar admin de outra barbearia */}
       {currentUser && !isOwner && showLoginModal && (
         <UnauthorizedAccess 
+          userEmail={currentUser.email}
+          attemptedSlug={slug}
           onLogout={() => {
-            auth.signOut();
+            signOut(auth);
             setShowLoginModal(false);
           }} 
         />

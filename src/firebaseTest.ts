@@ -1,5 +1,6 @@
 // Arquivo de teste para verificar conectividade com Firebase
 import { db, auth } from './firebaseConfig';
+import { collection, doc, getDoc, setDoc } from 'firebase/firestore';
 
 export const testFirebaseConnection = async (): Promise<boolean> => {
   try {
@@ -7,7 +8,8 @@ export const testFirebaseConnection = async (): Promise<boolean> => {
     
     // Teste 1: Verificar se o Firestore está acessível
     console.log('📊 Testando Firestore...');
-    const testDoc = await db.collection('test').doc('connection').get();
+    const testDocRef = doc(db, 'test', 'connection');
+    const testDoc = await getDoc(testDocRef);
     console.log('✅ Firestore conectado com sucesso');
     
     // Teste 2: Verificar se a autenticação está funcionando
@@ -25,7 +27,8 @@ export const testFirebaseConnection = async (): Promise<boolean> => {
 export const testFirestoreWrite = async (): Promise<boolean> => {
   try {
     console.log('✍️ Testando escrita no Firestore...');
-    await db.collection('test').doc('write-test').set({
+    const docRef = doc(db, 'test', 'write-test');
+    await setDoc(docRef, {
       timestamp: new Date(),
       message: 'Teste de escrita funcionando'
     });
@@ -40,9 +43,10 @@ export const testFirestoreWrite = async (): Promise<boolean> => {
 export const testFirestoreRead = async (): Promise<boolean> => {
   try {
     console.log('📖 Testando leitura do Firestore...');
-    const doc = await db.collection('test').doc('write-test').get();
-    if (doc.exists) {
-      console.log('✅ Leitura do Firestore funcionando:', doc.data());
+    const docRef = doc(db, 'test', 'write-test');
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      console.log('✅ Leitura do Firestore funcionando:', docSnap.data());
     } else {
       console.log('⚠️ Documento de teste não encontrado');
     }

@@ -1,0 +1,74 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // =========================================================
+    // BARBEARIAS (PERFIL)
+    // =========================================================
+    // Leitura pública do perfil da barbearia (para carregar a página)
+    match /barbers/{barberId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == barberId;
+
+      // =========================================================
+      // SUBCOLEÇÕES PÚBLICAS (Leitura livre, Escrita restrita)
+      // =========================================================
+      
+      // Serviços (precisa ser público para o cliente escolher)
+      match /services/{serviceId} {
+        allow read: if true;
+        allow write: if request.auth != null && request.auth.uid == barberId;
+      }
+
+      // Galeria de fotos
+      match /gallery/{imageId} {
+        allow read: if true;
+        allow write: if request.auth != null && request.auth.uid == barberId;
+      }
+
+      // Promoções
+      match /promotions/{promoId} {
+        allow read: if true;
+        allow write: if request.auth != null && request.auth.uid == barberId;
+      }
+      
+      // Visuais (tema, cores)
+      match /visuals/{visualId} {
+        allow read: if true;
+        allow write: if request.auth != null && request.auth.uid == barberId;
+      }
+
+      // =========================================================
+      // SUBCOLEÇÕES RESTRITAS OU MISTAS
+      // =========================================================
+
+      // Agendamentos:
+      // - Leitura: Dono vê tudo. Cliente vê o seu (se tivéssemos auth de cliente).
+      //   Por enquanto, permitimos criação pública (cliente agendando).
+      //   Leitura restrita ao dono para evitar vazamento de dados.
+      match /appointments/{appointmentId} {
+        allow create: if true; // Qualquer um pode criar agendamento
+        allow read, update, delete: if request.auth != null && request.auth.uid == barberId;
+      }
+
+      // Clientes: Restrito ao dono
+      match /clients/{clientId} {
+        allow read, write: if request.auth != null && request.auth.uid == barberId;
+      }
+
+      // Transações Financeiras: Restrito ao dono
+      match /transactions/{transactionId} {
+        allow read, write: if request.auth != null && request.auth.uid == barberId;
+      }
+    }
+
+    // =========================================================
+    // OUTRAS COLEÇÕES GLOBAIS (Se houver)
+    // =========================================================
+    
+    // Exemplo para loyaltyClients se for global (ajuste conforme seu uso)
+    match /loyaltyClients/{clientId} {
+       allow read, write: if request.auth != null; 
+    }
+  }
+}

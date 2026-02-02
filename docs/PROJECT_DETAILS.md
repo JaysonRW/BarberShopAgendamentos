@@ -1,101 +1,81 @@
-# Documentação do Projeto Barber Shop Agendamentos
+# Detalhes do Projeto: Barber Shop Agendamentos
 
 ## 1. Visão Geral
-O **Barber Shop Agendamentos** é uma plataforma SaaS (Software as a Service) desenvolvida para barbearias, permitindo que cada barbeiro tenha sua própria página personalizada para agendamentos online, gestão de serviços, promoções e controle financeiro básico.
-
-A aplicação funciona como uma SPA (Single Page Application) multi-tenant, onde o acesso é determinado pelo "slug" (identificador único) da barbearia na URL (ex: `meusite.com/nome-da-barbearia`).
+Sistema de agendamento online para barbearias, permitindo que múltiplos barbeiros tenham suas próprias páginas personalizadas (slugs) e gerenciem seus negócios através de um painel administrativo.
 
 ## 2. Tecnologias Utilizadas
 
 ### Frontend
-- **React 19**: Biblioteca principal para construção da interface.
-- **TypeScript**: Superset do JavaScript para tipagem estática e segurança no desenvolvimento.
-- **Vite**: Build tool e servidor de desenvolvimento rápido.
-- **Tailwind CSS**: Framework CSS utilitário (carregado via CDN) para estilização rápida e responsiva.
-- **Google Fonts**: Fontes 'Anton' e 'Montserrat' para tipografia.
+- **React 19**: Biblioteca de UI moderna e performática.
+- **TypeScript**: Tipagem estática para maior segurança e manutenibilidade.
+- **Vite**: Build tool rápida e leve.
+- **Tailwind CSS v4**: Framework de estilização utilitária (configurado via PostCSS/Vite).
 
-### Backend & Infraestrutura (Serverless)
-- **Firebase Authentication**: Gerenciamento de usuários e autenticação.
-- **Firebase Firestore**: Banco de dados NoSQL em tempo real.
-- **Firebase Storage**: Armazenamento de imagens (logos, fotos da galeria).
-- **Vercel (Provável)**: Configuração presente (`vercel.json`) sugerindo deploy na Vercel.
+### Backend & Infraestrutura (Firebase)
+- **Firebase Authentication**: Gerenciamento de usuários (Barbeiros).
+- **Cloud Firestore**: Banco de dados NoSQL em tempo real.
+- **Firebase Storage**: Armazenamento de imagens (logos, galeria).
+- **Firebase Hosting**: Hospedagem da aplicação.
 
 ## 3. Estrutura do Banco de Dados (Firestore)
 
-O banco de dados é estruturado principalmente em torno da coleção `barbers`. Cada documento nesta coleção representa uma barbearia completa.
+O banco de dados foi migrado de uma estrutura baseada em arrays para **Subcoleções**, visando escalabilidade e performance.
 
-### Coleção: `barbers`
-**ID do Documento:** `UID` do usuário (Autenticação Firebase).
+### Coleção Raiz: `barbers`
+Cada documento representa uma barbearia/barbeiro.
+- **ID**: UID do usuário (Firebase Auth).
+- **Campos**:
+  - `profile`: Objeto com dados públicos (nome, slug, localização, tema).
+  - `availability`: Objeto com horários de funcionamento.
+  - `createdAt`, `updatedAt`: Timestamps.
 
-**Campos Principais:**
-- **`profile`** (Map): Dados cadastrais (shopName, slug, location, whatsappNumber, logoUrl, theme, isActive, userID).
-- **`availability`** (Map): Configuração de horários disponíveis.
+### Subcoleções (dentro de `barbers/{barberId}`)
 
-### Subcoleções (Escalabilidade)
-Em vez de arrays gigantes dentro do documento do barbeiro, utilizamos subcoleções para dados que crescem indefinidamente:
-
-1.  **`barbers/{barberId}/services`**
-    - Documentos individuais para cada serviço.
-    - Campos: `name`, `price`, `duration`, `description`, `isActive`.
-
-2.  **`barbers/{barberId}/appointments`**
-    - Documentos individuais para cada agendamento.
-    - Campos: `clientName`, `clientPhone`, `date`, `time`, `serviceId`, `status`, `totalPrice`.
-
-3.  **`barbers/{barberId}/promotions`**
-    - Campanhas promocionais.
-
-4.  **`barbers/{barberId}/gallery`**
-    - Imagens do portfólio.
-
-5.  **`barbers/{barberId}/clients`**
-    - Cadastro de clientes recorrentes.
-    - Campos: `name`, `phone`, `email`, `totalVisits`, `lastVisit`, `loyaltyPoints`.
-
-6.  **`barbers/{barberId}/expenses`**
-    - Controle financeiro de despesas.
+1.  **`services`**
+    *   Serviços oferecidos (Corte, Barba, etc.).
+    *   Campos: `name`, `price`, `duration`, `description`.
+2.  **`appointments`**
+    *   Agendamentos realizados.
+    *   Campos: `clientName`, `date`, `time`, `serviceId`, `status`.
+3.  **`promotions`**
+    *   Promoções ativas.
+    *   Campos: `title`, `discount`, `validUntil`.
+4.  **`gallery`**
+    *   Imagens da barbearia/trabalhos.
+    *   Campos: `url`, `description`, `createdAt`.
+5.  **`clients`** (Novo)
+    *   Base de clientes para CRM e Fidelidade.
+    *   Campos: `name`, `phone`, `totalVisits`, `loyaltyPoints`.
+6.  **`transactions`** (Novo)
+    *   Registro financeiro (Receitas e Despesas).
+    *   Campos: `type` (receita/despesa), `amount`, `category`, `date`.
 
 ## 4. Funcionamento e Fluxos
 
-### Roteamento Customizado
-O sistema utiliza um hook personalizado `useRouting` (ou lógica no `App.tsx`) para analisar a URL:
-1.  **Rota Raiz (`/`)**: Redireciona para barbearia padrão.
-2.  **Rota Barbeiro (`/:slug`)**: Carrega dados públicos via `BarberService.getBySlug` e subcoleções em paralelo.
-3.  **Rota Admin (`/:slug/admin`)**: Exige autenticação. Carrega o `AdminPanel`.
+### Modo Público (Cliente)
+1.  Acessa via URL: `/{nome-da-barbearia}`.
+2.  Sistema busca barbearia pelo `slug`.
+3.  Carrega dados públicos (Perfil, Serviços, Galeria, Promoções) usando regras de segurança `allow read`.
+4.  Cliente escolhe serviço, dia e horário.
+5.  Cria documento em `appointments` (permissão `allow create`).
 
-### Arquitetura de Componentes
-A aplicação foi refatorada para uma arquitetura modular:
-- **`src/components/layout`**: Header, Hero, Footer.
-- **`src/components/features`**: BookingForm, Promotions, Gallery.
-- **`src/components/auth`**: LoginModal, UnauthorizedAccess.
-- **`src/components/admin`**: Painel administrativo principal.
-  - **`tabs/`**: Componentes para cada aba (Dashboard, Agendamentos, Serviços, etc.).
-  - **`modals/`**: Modais de edição e criação.
-- **`src/components/common`**: UI kits reutilizáveis (LoadingSpinner, Icons, etc.).
+### Modo Administrativo (Barbeiro)
+1.  Acessa botão "Área do Barbeiro".
+2.  Login via Email/Senha.
+3.  Sistema verifica se `auth.uid` corresponde ao ID da barbearia carregada.
+4.  Painel Administrativo carrega todas as subcoleções (leitura restrita ao dono).
+5.  Barbeiro pode:
+    *   Gerenciar Agendamentos (Confirmar/Cancelar).
+    *   Editar Serviços e Perfil.
+    *   Ver Financeiro e Métricas.
+    *   Gerenciar Programa de Fidelidade.
 
-### Autenticação e Segurança
-- **Frontend**: Validação `currentUser.uid === barberData.id`.
-- **Backend**: Regras de segurança do Firestore (a implementar/validar) garantindo que usuários só escrevam em suas próprias coleções.
+## 5. Segurança (Firestore Rules)
+As regras foram configuradas para garantir:
+- **Público**: Pode ler perfil, serviços, galeria e promoções de qualquer barbearia. Pode criar agendamentos.
+- **Privado (Dono)**: Apenas o dono (verificado via Auth UID) pode ler/escrever em `appointments`, `clients`, `transactions` e editar seu próprio perfil/serviços.
 
-## 5. Estrutura de Arquivos Principal
-```
-src/
-├── components/         # Componentes React modularizados
-│   ├── admin/          # Painel Admin e suas sub-abas
-│   ├── auth/           # Componentes de autenticação
-│   ├── common/         # Componentes genéricos (UI Kit)
-│   ├── features/       # Funcionalidades específicas (Booking, Gallery)
-│   └── layout/         # Estrutura da página (Header, Footer)
-├── scripts/            # Scripts de manutenção (migração, seed)
-├── utils/              # Funções utilitárias (formatação, cálculos)
-├── App.tsx             # Componente raiz
-├── firestoreService.ts # Camada de serviço refatorada (Classes estáticas)
-├── firebaseConfig.ts   # Configuração do Firebase
-└── types.ts            # Tipagem global
-```
-
-## 6. Como Rodar Localmente
-1.  Clone o repositório.
-2.  Instale as dependências: `npm install`
-3.  Configure as variáveis de ambiente (se necessário, embora a config do Firebase esteja hardcoded no código atual para dev).
-4.  Execute: `npm run dev`
+## 6. Configuração de Desenvolvimento
+- `src/firebaseConfig.ts`: Inicialização do Firebase (Modular V9).
+- `src/firestoreService.ts`: Camada de abstração para operações de banco de dados.
+- `src/components/admin/tabs/*`: Componentes modulares para cada aba do painel.
