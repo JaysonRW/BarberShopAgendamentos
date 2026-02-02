@@ -1,5 +1,20 @@
 # Registro de Alterações (Step-by-Step)
 
+## [2026-02-02] - Correção da API do Firebase Storage
+**Autor:** Trae AI (Assistente)
+
+### Descrição
+Atualização dos métodos de manipulação de arquivos no `firestoreService.ts` para utilizar a API Modular do Firebase Storage, corrigindo erros de compatibilidade com a versão 9+.
+
+### Arquivos Alterados
+- `src/firestoreService.ts`:
+  - Importados métodos modulares: `ref`, `deleteObject`, `uploadBytes`, `getDownloadURL` do `firebase/storage`.
+  - Método `GalleryService.delete`: Substituído `storage.refFromURL(url).delete()` por `deleteObject(ref(storage, url))`.
+  - Método `GalleryService.uploadImage`: Substituído `storage.ref(path).put(file)` por `uploadBytes(ref(storage, path), file)` e `getDownloadURL`.
+
+### Detalhes Técnicos
+A implementação anterior tentava acessar métodos da instância `compat` (ex: `refFromURL`) que não existem na instância `FirebaseStorage` da API Modular. A correção alinha o serviço com as práticas recomendadas da versão 9 do Firebase SDK.
+
 ## [2026-02-02] - Correção de TypeScript em BarberService
 **Autor:** Trae AI (Assistente)
 

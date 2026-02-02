@@ -21,6 +21,7 @@ import {
   runTransaction,
   Timestamp
 } from 'firebase/firestore';
+import { ref, deleteObject, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, auth, storage } from './firebaseConfig';
 import type { 
   Promotion, 
@@ -543,20 +544,19 @@ export class GalleryService {
   static async delete(barberId: string, id: string, url: string): Promise<void> {
     if (url.includes('firebasestorage')) {
        try {
-         const storageRef = storage.refFromURL(url);
-         await storageRef.delete();
+         const storageRef = ref(storage, url);
+         await deleteObject(storageRef);
        } catch (e) { console.warn('Erro deletar storage', e); }
     }
     await deleteDoc(doc(db, `barbers/${barberId}/gallery`, id));
   }
 
   static async uploadImage(barberId: string, file: File, folder: 'logos' | 'gallery'): Promise<string> {
-     // Implementação simplificada de upload
      const fileName = `${Date.now()}_${file.name.replace(/[^a-z0-9.]/gi, '_')}`;
      const path = `barbers/${barberId}/${folder}/${fileName}`;
-     const ref = storage.ref(path);
-     await ref.put(file);
-     return await ref.getDownloadURL();
+     const storageRef = ref(storage, path);
+     await uploadBytes(storageRef, file);
+     return await getDownloadURL(storageRef);
   }
 }
 
