@@ -72,6 +72,8 @@ Refinamento da interface do modal de agendamento (PDV) na área administrativa p
   - **Seleção Inteligente**: Ao criar um cartão manualmente, o sistema permite buscar e selecionar clientes já cadastrados na base geral. Se o cliente já tiver cartão, avisa. Se não tiver, cria apenas o cartão vinculado. Se o cliente não existir, cria o cadastro completo.
   - **Correção de Fluxo**: Agendamentos confirmados na criação agora disparam corretamente todos os efeitos colaterais (Fidelidade, Financeiro, Bloqueio de Horário).
   - **Correção de Props**: Corrigido erro onde a lista de clientes fidelidade não era passada corretamente para o componente (`loyaltyClients` vs `clients`), o que impedia a visualização dos dados.
+  - **Duração de Serviços**: Implementado campo de duração (minutos) na gestão de serviços. Agora o barbeiro pode definir quanto tempo cada serviço leva, e essa informação é exibida tanto no painel administrativo quanto no formulário de agendamento do cliente.
+  - **Visualização**: Adicionados ícones de relógio e formatação de tempo nos cards de serviço e opções de agendamento.
 - **Correção Crítica**: Resolvido problema onde o sistema impedia agendamentos em datas futuras que ainda não tinham disponibilidade pré-gerada no banco de dados.
 - Melhoria na UX: Usuário administrativo e clientes agora veem horários disponíveis para qualquer data futura válida (exceto domingos).
 
@@ -205,3 +207,24 @@ Conclusão da migração para subcoleções, refatoração de componentes, corre
 ### Próximos Passos Sugeridos
 - Monitorar logs de produção para garantir que as regras de segurança não bloqueiem fluxos legítimos não previstos.
 - Adicionar testes automatizados para as novas classes de serviço.
+
+## [2026-02-03] - Correção de Botões e Funcionalidade de Duração em Serviços
+**Autor:** Trae AI (Assistente)
+
+### Descrição
+Correção de problema onde os botões "Adicionar Serviço" e "Editar" não estavam respondendo na aba de Serviços. Implementação completa do campo "Duração" (minutos) em todo o ecossistema (Gestão, Agendamento Admin, Agendamento Cliente).
+
+### Arquivos Alterados
+- **`src/components/admin/tabs/ServicesTab.tsx`**:
+  - Adicionado `type="button"` aos botões de ação para evitar submissões de formulário acidentais ou comportamento padrão inesperado.
+  - Adicionados logs de console para facilitar a depuração.
+  - Refinada a UI do formulário de edição, garantindo tratamento correto para o novo campo `duration` (number).
+  - Melhorado feedback visual (hover, shadow).
+- **`src/components/admin/modals/AdminBookingModal.tsx`**:
+  - Integrada a exibição da duração no dropdown de seleção de serviços (ex: "Corte - R$ 30,00 (30 min)").
+- **`src/components/features/BookingForm.tsx`**:
+  - Atualizado para exibir a duração do serviço selecionado no card de seleção para o cliente final.
+
+### Impacto
+- **Correção de Bug**: Botões da gestão de serviços agora funcionam de forma confiável.
+- **Nova Funcionalidade**: Barbeiros podem definir a duração estimada de cada serviço, e essa informação é visível para o cliente e no momento do agendamento manual, melhorando o planejamento.

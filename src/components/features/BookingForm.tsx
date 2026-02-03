@@ -174,7 +174,14 @@ export const BookingForm: React.FC<{
                   }`}
                 >
                   {service.name}
-                  <span className="block text-xs opacity-80">R$ {service.price.toFixed(2)}</span>
+                  <div className="flex flex-col items-center mt-1">
+                    <span className="block text-xs opacity-80 font-bold">R$ {service.price.toFixed(2)}</span>
+                    {service.duration && (
+                      <span className="block text-[10px] opacity-70 flex items-center gap-1 mt-0.5">
+                        <ClockIcon className="h-3 w-3" /> {service.duration} min
+                      </span>
+                    )}
+                  </div>
                 </button>
               ))}
             </div>

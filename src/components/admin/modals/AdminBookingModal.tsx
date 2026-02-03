@@ -173,7 +173,7 @@ export const AdminBookingModal: React.FC<AdminBookingModalProps> = ({
               <option value="">Selecione um serviço...</option>
               {services.map(s => (
                 <option key={s.id} value={s.id}>
-                  {s.name} - R$ {s.price.toFixed(2)}
+                  {s.name} - R$ {s.price.toFixed(2)} {s.duration ? `(${s.duration} min)` : ''}
                 </option>
               ))}
             </select>
