@@ -33,7 +33,8 @@ export const AppointmentsTab: React.FC<AppointmentsTabProps> = ({
       if (success) {
         // Enviar msg whatsapp
         const message = `Olá ${appointment.clientName}, seu agendamento para ${appointment.service?.name || 'serviço'} no dia ${new Date(appointment.date).toLocaleDateString('pt-BR')} às ${appointment.time} foi CONFIRMADO!`;
-        const url = `https://wa.me/${appointment.clientWhatsapp}?text=${encodeURIComponent(message)}`;
+        const phone = appointment.clientWhatsapp.replace(/\D/g, '');
+        const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
         window.open(url, '_blank');
         onRefresh();
       } else {

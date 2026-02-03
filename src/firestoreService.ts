@@ -302,7 +302,18 @@ export class AppointmentService {
       if (!barberDoc.exists()) throw new Error("Barbearia não encontrada.");
       
       const availability = barberDoc.data()?.availability || {};
-      const availableSlots = availability[appointmentData.date] || [];
+      let availableSlots = availability[appointmentData.date];
+
+      // Se não houver slots definidos para a data, usar fallback padrão
+      if (!availableSlots) {
+        const dateObj = new Date(appointmentData.date);
+        const dayOfWeek = dateObj.getUTCDay();
+        if (dayOfWeek !== 0) { // Não é domingo
+           availableSlots = ['09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00'];
+        } else {
+           availableSlots = [];
+        }
+      }
 
       if (!availableSlots.includes(appointmentData.time)) {
         alert('Horário indisponível.');
@@ -332,6 +343,7 @@ export class AppointmentService {
         const barberRef = doc(db, 'barbers', barberId);
         const appointmentRef = doc(db, `barbers/${barberId}/appointments`, appointmentId);
         
+        // LEITURAS (Devem ser feitas antes de qualquer escrita)
         const appointmentDoc = await transaction.get(appointmentRef);
         const barberDoc = await transaction.get(barberRef);
         
@@ -339,6 +351,23 @@ export class AppointmentService {
 
         const appointmentData = appointmentDoc.data() as Appointment;
         const currentStatus = appointmentData.status;
+
+        // Preparar referências para leituras condicionais
+        const normalizedWhatsapp = appointmentData.clientWhatsapp.replace(/\D/g, '');
+        const clientRef = doc(db, `barbers/${barberId}/clients`, normalizedWhatsapp);
+        const loyaltyId = `${barberId}_${normalizedWhatsapp}`;
+        const loyaltyRef = doc(db, 'loyaltyClients', loyaltyId);
+
+        let clientDoc = null;
+        let loyaltyDoc = null;
+
+        // Se for confirmar, precisamos ler dados do cliente e fidelidade ANTES de escrever qualquer coisa
+        if (currentStatus === 'Pendente' && status === 'Confirmado' && normalizedWhatsapp) {
+            clientDoc = await transaction.get(clientRef);
+            loyaltyDoc = await transaction.get(loyaltyRef);
+        }
+
+        // --- ESCRITAS ---
 
         // Se confirmando...
         if (currentStatus === 'Pendente' && status === 'Confirmado') {
@@ -351,16 +380,12 @@ export class AppointmentService {
           }
 
           // 2. Fidelidade e Clientes
-          const normalizedWhatsapp = appointmentData.clientWhatsapp.replace(/\D/g, '');
           if (normalizedWhatsapp) {
             // Cliente
-            const clientRef = doc(db, `barbers/${barberId}/clients`, normalizedWhatsapp);
-            const clientDoc = await transaction.get(clientRef);
-            
             const servicePrice = appointmentData.service?.price || 0;
             const serviceName = appointmentData.service?.name || 'Serviço';
 
-            if (!clientDoc.exists()) {
+            if (!clientDoc || !clientDoc.exists()) {
                const newClient: Omit<Client, 'id'> = {
                   barberId,
                   name: appointmentData.clientName,
@@ -391,11 +416,7 @@ export class AppointmentService {
             }
 
             // Fidelidade
-            const loyaltyId = `${barberId}_${normalizedWhatsapp}`;
-            const loyaltyRef = doc(db, 'loyaltyClients', loyaltyId);
-            const loyaltyDoc = await transaction.get(loyaltyRef);
-            
-            if (loyaltyDoc.exists()) {
+            if (loyaltyDoc && loyaltyDoc.exists()) {
               const lData = loyaltyDoc.data();
               if (lData.stars < (lData.goal || 5)) {
                 transaction.update(loyaltyRef, { 
@@ -410,6 +431,7 @@ export class AppointmentService {
                 clientWhatsapp: normalizedWhatsapp,
                 clientName: appointmentData.clientName,
                 stars: 1,
+                points: 0,
                 goal: 5,
                 lifetimeAppointments: 1,
                 createdAt: new Date(),
@@ -572,20 +594,49 @@ export class ClientService {
   
   static async create(barberId: string, data: ClientFormData): Promise<string> {
     const normalized = data.whatsapp.replace(/\D/g, '');
-    const ref = doc(db, `barbers/${barberId}/clients`, normalized);
-    const snap = await getDoc(ref);
-    if (snap.exists()) throw new Error("Cliente já existe");
-    
-    await setDoc(ref, {
-       barberId,
-       ...data,
-       whatsapp: normalized,
-       totalVisits: 0,
-       totalSpent: 0,
-       createdAt: new Date(),
-       updatedAt: new Date()
-    });
-    return normalized;
+    const clientRef = doc(db, `barbers/${barberId}/clients`, normalized);
+    const loyaltyRef = doc(db, 'loyaltyClients', `${barberId}_${normalized}`);
+
+    try {
+      await runTransaction(db, async (transaction) => {
+        // LEITURAS (Devem vir antes de qualquer escrita)
+        const clientSnap = await transaction.get(clientRef);
+        const loyaltySnap = await transaction.get(loyaltyRef);
+
+        if (clientSnap.exists()) throw new Error("Cliente já existe");
+
+        // ESCRITAS
+        // Criar Cliente
+        transaction.set(clientRef, {
+          barberId,
+          ...data,
+          whatsapp: normalized,
+          totalVisits: 0,
+          totalSpent: 0,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
+
+        // Inicializar Fidelidade (se não existir)
+        if (!loyaltySnap.exists()) {
+          transaction.set(loyaltyRef, {
+            barberId,
+            clientWhatsapp: normalized,
+            clientName: data.name,
+            stars: 0,
+            goal: 5,
+            lifetimeAppointments: 0,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          });
+        }
+      });
+      
+      return normalized;
+    } catch (error) {
+      console.error('Erro ao criar cliente:', error);
+      throw error;
+    }
   }
 
   static async update(barberId: string, clientId: string, updates: Partial<Client>): Promise<void> {
@@ -607,8 +658,9 @@ export class LoyaltyService {
     return snap.docs.map(d => ({ id: d.id, ...d.data() } as LoyaltyClient));
   }
 
-  static async addStar(barberId: string, clientId: string): Promise<void> {
-    const ref = doc(db, 'loyaltyClients', clientId);
+  static async addStar(barberId: string, clientWhatsapp: string): Promise<void> {
+    const normalized = clientWhatsapp.replace(/\D/g, '');
+    const ref = doc(db, 'loyaltyClients', `${barberId}_${normalized}`);
     const snap = await getDoc(ref);
     if (snap.exists()) {
       const data = snap.data();
@@ -622,8 +674,9 @@ export class LoyaltyService {
     }
   }
 
-  static async redeemStars(barberId: string, clientId: string): Promise<void> {
-    const ref = doc(db, 'loyaltyClients', clientId);
+  static async redeemStars(barberId: string, clientWhatsapp: string): Promise<void> {
+    const normalized = clientWhatsapp.replace(/\D/g, '');
+    const ref = doc(db, 'loyaltyClients', `${barberId}_${normalized}`);
     const snap = await getDoc(ref);
     if (snap.exists()) {
        await updateDoc(ref, { 
@@ -634,9 +687,30 @@ export class LoyaltyService {
     }
   }
 
-  static async updateGoal(barberId: string, clientId: string, newGoal: number): Promise<void> {
-    const ref = doc(db, 'loyaltyClients', clientId);
+  static async updateGoal(barberId: string, clientWhatsapp: string, newGoal: number): Promise<void> {
+    const normalized = clientWhatsapp.replace(/\D/g, '');
+    const ref = doc(db, 'loyaltyClients', `${barberId}_${normalized}`);
     await updateDoc(ref, { goal: newGoal });
+  }
+
+  static async createCard(barberId: string, clientName: string, clientWhatsapp: string): Promise<void> {
+    const normalized = clientWhatsapp.replace(/\D/g, '');
+    const ref = doc(db, 'loyaltyClients', `${barberId}_${normalized}`);
+    const snap = await getDoc(ref);
+    
+    if (!snap.exists()) {
+      await setDoc(ref, {
+        barberId,
+        clientWhatsapp: normalized,
+        clientName,
+        stars: 0,
+        points: 0,
+        goal: 5,
+        lifetimeAppointments: 0,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+    }
   }
 }
 

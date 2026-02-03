@@ -5,7 +5,8 @@ export interface Promotion {
   title: string;
   description: string;
   discount?: number;
-  validUntil?: Date;
+  startDate?: string;
+  endDate?: string;
   isActive?: boolean;
 }
 

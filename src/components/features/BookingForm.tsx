@@ -24,18 +24,40 @@ export const BookingForm: React.FC<{
   const availableDates = React.useMemo(() => {
     const today = new Date();
     const dates = [];
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < 14; i++) { // Aumentado para 14 dias
       const date = new Date(today);
       date.setDate(today.getDate() + i);
+      
+      if (date.getDay() === 0) continue; // Pula domingos
+
       const dateString = date.toISOString().split('T')[0];
-      if (availability[dateString]?.length > 0) {
+      
+      // Se tiver info explícita, usa ela. Se não tiver, assume livre (fallback)
+      const hasSlots = availability[dateString] 
+        ? availability[dateString].length > 0 
+        : true;
+
+      if (hasSlots) {
         dates.push(dateString);
       }
     }
     return dates;
   }, [availability]);
 
-  const availableTimes = formData.date ? availability[formData.date] || [] : [];
+  const availableTimes = React.useMemo(() => {
+    if (!formData.date) return [];
+    
+    // 1. Disponibilidade explícita
+    if (availability[formData.date]) {
+        return availability[formData.date];
+    }
+    
+    // 2. Fallback
+    const dateObj = new Date(formData.date);
+    if (dateObj.getDay() === 0) return []; // Domingo sem horário
+    
+    return ['09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00'];
+  }, [formData.date, availability]);
 
   const selectedService = services.find(s => s.id === formData.serviceId);
 

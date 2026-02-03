@@ -1,5 +1,100 @@
 # Registro de Alterações (Step-by-Step)
 
+## [2026-02-02] - Funcionalidades de PDV e Gestão de Clientes
+**Autor:** Trae AI (Assistente)
+
+### Descrição
+Implementação de agendamento direto pela aba de Clientes (funcionalidade PDV) e verificação das funções de edição e exclusão de clientes.
+
+### Arquivos Alterados
+- **`src/components/admin/modals/AdminBookingModal.tsx`**: Novo componente. Modal simplificado para criação rápida de agendamentos pelo administrador, sem redirecionamento para WhatsApp.
+- **`src/components/admin/tabs/ClientsTab.tsx`**: 
+  - Adicionado botão "Agendar" (ícone de calendário) na lista de clientes.
+  - Integração com `AdminBookingModal`.
+  - Recebe agora `services` e `availability` para alimentar o formulário de agendamento.
+- **`src/components/admin/AdminPanel.tsx`**: Atualizado para passar as props necessárias (`services`, `availability`) para o componente `ClientsTab`.
+
+### Impacto
+- **PDV Ágil**: O administrador pode selecionar um cliente da lista e lançar um serviço imediatamente.
+- **Gestão**: As funções de Editar e Excluir clientes já estavam presentes e continuam funcionais, agora complementadas pela opção de agendar.
+
+## [2026-02-02] - Integração Cadastro de Clientes e Fidelidade
+**Autor:** Trae AI (Assistente)
+
+### Descrição
+Ajuste na lógica de criação de clientes para garantir que todo novo cliente cadastrado manualmente já possua um registro no programa de fidelidade. Também foram corrigidos métodos do serviço de fidelidade para garantir a correta identificação dos documentos no Firestore.
+
+### Arquivos Alterados
+- **`src/firestoreService.ts`**:
+  - `ClientService.create`: Agora utiliza `runTransaction` para criar atomicamente o cliente na coleção `clients` E o registro inicial na coleção `loyaltyClients` (com 0 estrelas).
+  - `LoyaltyService`: Métodos `addStar`, `redeemStars` e `updateGoal` atualizados para receber `clientWhatsapp` e construir o ID do documento internamente (`${barberId}_${normalizedWhatsapp}`), corrigindo um potencial erro de referência.
+
+### Impacto
+- Clientes cadastrados manualmente agora aparecem imediatamente na aba "Fidelidade".
+- Operações de adicionar estrela e resgatar prêmios estão mais robustas.
+
+## [2026-02-02] - Correção Crítica em Transação de Clientes
+**Autor:** Trae AI (Assistente)
+
+### Descrição
+Correção de um erro de execução no Firestore (`FirebaseError: Firestore transactions require all reads to be executed before all writes`) que impedia o cadastro de novos clientes.
+
+### Arquivos Alterados
+- **`src/firestoreService.ts`**:
+  - `ClientService.create`: Reordenada a lógica da transação. Agora todas as operações de leitura (`transaction.get`) são executadas antes de qualquer operação de escrita (`transaction.set`), conforme exigido pelo SDK do Firestore.
+
+### Impacto
+- Cadastro de clientes volta a funcionar corretamente, mantendo a consistência entre a coleção de clientes e a fidelidade.
+
+## [2026-02-02] - Melhoria UX no Modal de Agendamento Admin
+**Autor:** Trae AI (Assistente)
+
+### Descrição
+Refinamento da interface do modal de agendamento (PDV) na área administrativa para facilitar a seleção de datas e horários, seguindo o padrão visual do formulário de agendamento público.
+
+### Arquivos Alterados
+- **`src/components/admin/modals/AdminBookingModal.tsx`**:
+  - Implementada lógica de **Fallback de Disponibilidade**: Se a data selecionada não tiver registros no banco de dados (ex: datas futuras distantes), o sistema agora assume horários padrão (09:00 - 19:00) em vez de mostrar "Nenhum horário disponível".
+  - **Sugestões de Data**: Atualizado para gerar datas futuras automaticamente (14 dias), ignorando domingos, mesmo que não haja disponibilidade explícita no banco.
+- **`src/firestoreService.ts`**:
+  - **`AppointmentService.create`**: Atualizada validação de horário para aceitar datas sem registro explícito de disponibilidade, usando o mesmo fallback de horários padrão. Isso evita erros ao tentar agendar em datas futuras válidas.
+  - **`AppointmentService.updateStatus`**: Corrigido erro de transação (`Firestore transactions require all reads to be executed before all writes`). Agora todas as leituras (agendamento, barbeiro, cliente, fidelidade) são executadas antes de qualquer operação de escrita, garantindo conformidade com as regras do Firestore. Adicionado campo `points: 0` na criação do registro de fidelidade.
+- **`src/components/features/BookingForm.tsx`**:
+  - Aplicada a mesma correção de fallback para o formulário público de agendamento, garantindo que clientes consigam agendar para datas futuras.
+- **`src/components/admin/modals/AdminBookingModal.tsx`**:
+  - Ajustado para chamar explicitamente `AppointmentService.updateStatus` quando um agendamento é criado já com status 'Confirmado'. Isso garante que a lógica de fidelidade, financeiro e atualização de disponibilidade seja executada, corrigindo o problema onde clientes confirmados não apareciam na aba de Fidelidade.
+- **`src/components/admin/tabs/LoyaltyTab.tsx`**:
+  - Adicionado botão "Novo Cartão" e modal para criação manual de clientes fidelidade (Nome + WhatsApp). Isso permite gerenciar a fidelidade de clientes que não agendaram pelo sistema ou para iniciar o programa com clientes antigos sem precisar criar agendamentos fictícios.
+  
+  ### Impacto
+  
+  - **Fidelidade**: Agora é possível criar cartões fidelidade automaticamente (ao confirmar agendamento) E manualmente (via botão na aba Fidelidade), atendendo à necessidade de flexibilidade e gestão manual.
+  - **Seleção Inteligente**: Ao criar um cartão manualmente, o sistema permite buscar e selecionar clientes já cadastrados na base geral. Se o cliente já tiver cartão, avisa. Se não tiver, cria apenas o cartão vinculado. Se o cliente não existir, cria o cadastro completo.
+  - **Correção de Fluxo**: Agendamentos confirmados na criação agora disparam corretamente todos os efeitos colaterais (Fidelidade, Financeiro, Bloqueio de Horário).
+  - **Correção de Props**: Corrigido erro onde a lista de clientes fidelidade não era passada corretamente para o componente (`loyaltyClients` vs `clients`), o que impedia a visualização dos dados.
+- **Correção Crítica**: Resolvido problema onde o sistema impedia agendamentos em datas futuras que ainda não tinham disponibilidade pré-gerada no banco de dados.
+- Melhoria na UX: Usuário administrativo e clientes agora veem horários disponíveis para qualquer data futura válida (exceto domingos).
+
+## [2026-02-02] - Melhoria no Módulo de Promoções
+**Autor:** Trae AI (Assistente)
+
+### Descrição
+Implementação de campos explícitos de data de início (`startDate`) e fim (`endDate`) para promoções, permitindo maior controle sobre a validade das ofertas.
+
+### Arquivos Alterados
+- **`src/types.ts`**:
+  - Adicionados campos opcionais `startDate` e `endDate` à interface `Promotion`.
+  - O campo `validUntil` foi removido da interface (mas mantido compatibilidade no código).
+- **`src/components/admin/tabs/PromotionsTab.tsx`**:
+  - Formulário de criação/edição atualizado para incluir inputs de "Data Inicial" e "Data Final".
+  - Card de promoção atualizado para exibir o período completo (ex: "De: 01/02/2026 - Até: 08/02/2026").
+  - Adicionada lógica de compatibilidade para exibir corretamente promoções antigas que usavam apenas `validUntil`.
+
+### Nota sobre Banco de Dados
+- Não é necessária migração manual.
+- Novas promoções terão os campos `startDate` e `endDate`.
+- Promoções antigas continuarão funcionando (o código usa `validUntil` como fallback para `endDate`), mas recomenda-se editá-las para definir o período correto.
+
 ## [2026-02-02] - Correção dos Filtros Financeiros e Visibilidade de Transações Futuras
 **Autor:** Trae AI (Assistente)
 

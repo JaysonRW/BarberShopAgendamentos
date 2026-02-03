@@ -330,6 +330,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ barberData, onLogout, on
                   <ClientsTab
                     barberId={barberData.id}
                     clients={clients}
+                    services={barberData.services}
+                    availability={barberData.availability}
                     isLoading={isLoadingClients}
                     onDataUpdate={handleAdminDataUpdate}
                   />
@@ -390,10 +392,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ barberData, onLogout, on
 
                 {activeTab === 'loyalty' && (
                   <LoyaltyTab 
-                    loyaltyClients={loyaltyClients}
+                    clients={loyaltyClients}
+                    allClients={clients}
                     barberId={barberData.id}
                     isLoading={isLoyaltyLoading}
-                    onDataUpdate={handleAdminDataUpdate}
+                    onRefresh={handleAdminDataUpdate}
+                    shopName={barberData.profile.shopName}
                   />
                 )}
               </>

@@ -1,21 +1,27 @@
 import React from 'react';
-import { LoyaltyClient } from '../../../types';
-import { LoyaltyService } from '../../../firestoreService';
-import { UserIcon, StarIcon, WhatsAppIcon } from '../../common/Icons';
+import { LoyaltyClient, ClientFormData, Client } from '../../../types';
+import { LoyaltyService, ClientService } from '../../../firestoreService';
+import { UserIcon, StarIcon, WhatsAppIcon, CloseIcon } from '../../common/Icons';
 
 interface LoyaltyTabProps {
   barberId: string;
   clients: LoyaltyClient[];
+  allClients: Client[];
   isLoading: boolean;
   onRefresh: () => void;
   shopName: string;
 }
 
-export const LoyaltyTab: React.FC<LoyaltyTabProps> = ({ barberId, clients, isLoading, onRefresh, shopName }) => {
+export const LoyaltyTab: React.FC<LoyaltyTabProps> = ({ barberId, clients, allClients, isLoading, onRefresh, shopName }) => {
   const [searchTerm, setSearchTerm] = React.useState('');
   const [selectedClient, setSelectedClient] = React.useState<LoyaltyClient | null>(null);
   const [isRedeemModalOpen, setIsRedeemModalOpen] = React.useState(false);
   const [updatingClientId, setUpdatingClientId] = React.useState<string | null>(null);
+  const [isAddModalOpen, setIsAddModalOpen] = React.useState(false);
+  const [newClientData, setNewClientData] = React.useState({ name: '', whatsapp: '' });
+  const [isAddingClient, setIsAddingClient] = React.useState(false);
+  const [clientSearch, setClientSearch] = React.useState('');
+  const [showSuggestions, setShowSuggestions] = React.useState(false);
 
   const rewards = React.useMemo(() => [
     { stars: 5, description: 'Prêmio (Ex: Corte Grátis)' },
@@ -25,6 +31,14 @@ export const LoyaltyTab: React.FC<LoyaltyTabProps> = ({ barberId, clients, isLoa
     client.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     client.clientWhatsapp.includes(searchTerm)
   ), [clients, searchTerm]);
+
+  const clientSuggestions = React.useMemo(() => {
+    if (!clientSearch) return [];
+    return (allClients || []).filter(c => 
+      c.name.toLowerCase().includes(clientSearch.toLowerCase()) || 
+      c.whatsapp.includes(clientSearch)
+    ).slice(0, 5);
+  }, [allClients, clientSearch]);
   
   const handleAddStar = async (client: LoyaltyClient) => {
     setUpdatingClientId(client.id);
@@ -66,9 +80,81 @@ export const LoyaltyTab: React.FC<LoyaltyTabProps> = ({ barberId, clients, isLoa
     }
   };
   
+  const handleAddClient = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!newClientData.name || !newClientData.whatsapp) {
+          alert('Preencha nome e WhatsApp.');
+          return;
+      }
+      
+      setIsAddingClient(true);
+      try {
+          // Check if client already exists in general clients list
+          const existingClient = (allClients || []).find(c => 
+            c.whatsapp.replace(/\D/g, '') === newClientData.whatsapp.replace(/\D/g, '')
+          );
+
+          if (existingClient) {
+             // Check if already has loyalty card
+             const existingLoyalty = (clients || []).find(c => 
+               c.clientWhatsapp.replace(/\D/g, '') === newClientData.whatsapp.replace(/\D/g, '')
+             );
+             
+             if (existingLoyalty) {
+               alert("Este cliente já possui um cartão fidelidade.");
+               setIsAddingClient(false);
+               return;
+             }
+
+             // Create only loyalty card
+             await LoyaltyService.createCard(barberId, existingClient.name, existingClient.whatsapp);
+             alert('Cartão fidelidade criado para cliente existente!');
+          } else {
+             // Create new client and loyalty card
+             const clientData: ClientFormData = {
+                name: newClientData.name,
+                whatsapp: newClientData.whatsapp,
+                notes: 'Criado manualmente via Fidelidade'
+             };
+             await ClientService.create(barberId, clientData);
+             alert('Cliente e cartão adicionados com sucesso!');
+          }
+          
+          setIsAddModalOpen(false);
+          setNewClientData({ name: '', whatsapp: '' });
+          setClientSearch('');
+          onRefresh();
+      } catch (error: any) {
+          console.error("Erro ao adicionar cliente:", error);
+          if (error.message === "Cliente já existe") {
+             // Fallback if client exists in DB but not in local allClients list yet
+             try {
+                await LoyaltyService.createCard(barberId, newClientData.name, newClientData.whatsapp);
+                alert('Cartão fidelidade ativado para o cliente existente.');
+                setIsAddModalOpen(false);
+                onRefresh();
+             } catch (innerError) {
+                alert("Erro ao ativar cartão para cliente existente.");
+             }
+          } else {
+              alert("Erro ao adicionar cliente.");
+          }
+      } finally {
+          setIsAddingClient(false);
+      }
+  };
+
   return (
     <div className="space-y-6">
-      <h2 className="text-3xl font-bold">Programa de Fidelidade (Selos)</h2>
+      <div className="flex justify-between items-center">
+        <h2 className="text-3xl font-bold">Programa de Fidelidade (Selos)</h2>
+        <button
+          onClick={() => setIsAddModalOpen(true)}
+          className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition duration-300 flex items-center gap-2"
+        >
+          <UserIcon className="h-5 w-5" /> Novo Cartão
+        </button>
+      </div>
 
       <div className="bg-gray-800 rounded-lg p-6">
         <input
@@ -167,6 +253,89 @@ export const LoyaltyTab: React.FC<LoyaltyTabProps> = ({ barberId, clients, isLoa
           </div>
         )}
       </div>
+
+      {/* Modal Adicionar Cliente Manual */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
+            <div className="bg-gray-800 p-8 rounded-xl shadow-2xl text-white w-full max-w-md m-4 relative">
+                <button 
+                    onClick={() => setIsAddModalOpen(false)}
+                    className="absolute top-4 right-4 text-gray-400 hover:text-white"
+                >
+                    <CloseIcon className="h-6 w-6" />
+                </button>
+                <h3 className="text-2xl font-bold mb-6">Novo Cartão Fidelidade</h3>
+                
+                {/* Search existing clients */}
+                <div className="mb-6 relative">
+                  <label className="block text-sm text-gray-300 mb-1">Buscar cliente existente</label>
+                  <input
+                    type="text"
+                    value={clientSearch}
+                    onChange={(e) => {
+                      setClientSearch(e.target.value);
+                      setShowSuggestions(true);
+                    }}
+                    onFocus={() => setShowSuggestions(true)}
+                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                    placeholder="Digite nome ou whatsapp..."
+                  />
+                  {showSuggestions && clientSuggestions.length > 0 && (
+                    <div className="absolute z-10 w-full bg-gray-700 border border-gray-600 rounded-lg mt-1 shadow-lg max-h-48 overflow-y-auto">
+                      {clientSuggestions.map(client => (
+                        <div
+                          key={client.id}
+                          className="px-4 py-2 hover:bg-gray-600 cursor-pointer text-white"
+                          onClick={() => {
+                            setNewClientData({ name: client.name, whatsapp: client.whatsapp });
+                            setClientSearch(client.name);
+                            setShowSuggestions(false);
+                          }}
+                        >
+                          <p className="font-bold">{client.name}</p>
+                          <p className="text-xs text-gray-400">{client.whatsapp}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="border-t border-gray-700 my-4"></div>
+
+                <form onSubmit={handleAddClient} className="space-y-4">
+                    <div>
+                        <label className="block text-sm text-gray-300 mb-1">Nome do Cliente</label>
+                        <input 
+                            type="text" 
+                            value={newClientData.name}
+                            onChange={(e) => setNewClientData({...newClientData, name: e.target.value})}
+                            className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-green-500 outline-none"
+                            placeholder="Ex: João Silva"
+                            required
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm text-gray-300 mb-1">WhatsApp</label>
+                        <input 
+                            type="text" 
+                            value={newClientData.whatsapp}
+                            onChange={(e) => setNewClientData({...newClientData, whatsapp: e.target.value})}
+                            className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-green-500 outline-none"
+                            placeholder="Ex: 11999999999"
+                            required
+                        />
+                    </div>
+                    <button 
+                        type="submit"
+                        disabled={isAddingClient}
+                        className="w-full bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700 transition duration-300 disabled:bg-gray-600"
+                    >
+                        {isAddingClient ? 'Criando...' : 'Criar Cartão'}
+                    </button>
+                </form>
+            </div>
+        </div>
+      )}
 
       {isRedeemModalOpen && selectedClient && (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">

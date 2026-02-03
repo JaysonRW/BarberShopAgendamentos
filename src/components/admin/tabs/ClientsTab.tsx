@@ -1,22 +1,39 @@
 import React from 'react';
-import { Client, ClientFormData, ClientStats } from '../../../types';
+import { Client, ClientFormData, ClientStats, Service } from '../../../types';
 import { ClientService } from '../../../firestoreService';
 import { ClientFormModal } from '../modals/ClientFormModal';
+import { AdminBookingModal } from '../modals/AdminBookingModal';
 import { LoadingSpinner } from '../../common/LoadingSpinner';
+import { CalendarIcon } from '../../common/Icons';
 
 interface ClientsTabProps {
   barberId: string;
   clients: Client[];
+  services: Service[];
+  availability: Record<string, string[]>;
   isLoading: boolean;
   onDataUpdate: () => void;
 }
 
-export const ClientsTab: React.FC<ClientsTabProps> = ({ barberId, clients, isLoading, onDataUpdate }) => {
+export const ClientsTab: React.FC<ClientsTabProps> = ({ 
+  barberId, 
+  clients, 
+  services,
+  availability,
+  isLoading, 
+  onDataUpdate 
+}) => {
   const [searchTerm, setSearchTerm] = React.useState('');
   const [sortBy, setSortBy] = React.useState<'name' | 'lastVisit' | 'totalVisits'>('name');
+  
+  // Client Modal State
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [editingClient, setEditingClient] = React.useState<Client | null>(null);
   const [isSaving, setIsSaving] = React.useState(false);
+
+  // Booking Modal State
+  const [isBookingModalOpen, setIsBookingModalOpen] = React.useState(false);
+  const [bookingClient, setBookingClient] = React.useState<Client | null>(null);
   
   const clientStats: ClientStats = React.useMemo(() => {
     const now = new Date();
@@ -98,6 +115,16 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({ barberId, clients, isLoa
     }
   };
 
+  const handleOpenBookingModal = (client: Client) => {
+    setBookingClient(client);
+    setIsBookingModalOpen(true);
+  };
+
+  const handleCloseBookingModal = () => {
+    setIsBookingModalOpen(false);
+    setBookingClient(null);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -147,6 +174,13 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({ barberId, clients, isLoa
                     <td className="p-4 text-center text-lg font-bold">{client.totalVisits}</td>
                     <td className="p-4 text-gray-300">{client.lastVisit ? new Date(client.lastVisit).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : 'N/A'}</td>
                     <td className="p-4 text-right space-x-2">
+                      <button 
+                        onClick={() => handleOpenBookingModal(client)}
+                        className="bg-green-600 px-3 py-1 rounded text-sm hover:bg-green-700 inline-flex items-center"
+                        title="Novo Agendamento"
+                      >
+                        <CalendarIcon className="h-4 w-4 mr-1" /> Agendar
+                      </button>
                       <button onClick={() => handleOpenModal(client)} className="bg-blue-600 px-3 py-1 rounded text-sm hover:bg-blue-700">Editar</button>
                       <button onClick={() => handleDeleteClient(client.id)} className="bg-red-600 px-3 py-1 rounded text-sm hover:bg-red-700">Excluir</button>
                     </td>
@@ -164,6 +198,16 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({ barberId, clients, isLoa
         onSave={handleSaveClient}
         client={editingClient}
         isLoading={isSaving}
+      />
+
+      <AdminBookingModal
+        isOpen={isBookingModalOpen}
+        onClose={handleCloseBookingModal}
+        client={bookingClient}
+        services={services}
+        availability={availability}
+        barberId={barberId}
+        onSuccess={onDataUpdate}
       />
     </div>
   );
