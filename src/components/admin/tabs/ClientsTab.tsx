@@ -189,6 +189,11 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
               </tbody>
             </table>
           </div>
+          {filteredAndSortedClients.length === 0 && (
+            <div className="p-8 text-center text-gray-400">
+              Nenhum cliente encontrado.
+            </div>
+          )}
         </div>
       )}
 

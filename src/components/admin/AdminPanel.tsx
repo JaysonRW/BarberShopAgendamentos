@@ -250,39 +250,39 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ barberData, onLogout, on
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex flex-col lg:flex-row gap-8">
-          <div className="lg:w-64">
-            <nav className="space-y-2">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+        <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
+          <div className="lg:w-64 flex-shrink-0">
+            <nav className="flex lg:flex-col overflow-x-auto lg:overflow-visible space-x-2 lg:space-x-0 lg:space-y-2 pb-4 lg:pb-0 scrollbar-hide">
               {[
                 { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon className="h-5 w-5" /> },
-                { id: 'profile', label: 'Perfil da Barbearia', icon: <ShopIcon className="h-5 w-5" /> },
-                { id: 'visuals', label: 'Personalização Visual', icon: <VisualsIcon className="h-5 w-5" /> },
+                { id: 'profile', label: 'Perfil', icon: <ShopIcon className="h-5 w-5" /> },
+                { id: 'visuals', label: 'Visual', icon: <VisualsIcon className="h-5 w-5" /> },
                 { id: 'financials', label: 'Financeiro', icon: <ChartBarIcon className="h-5 w-5" /> },
                 { id: 'clients', label: 'Clientes', icon: <UsersIcon className="h-5 w-5" /> },
                 { id: 'services', label: 'Serviços', icon: <ScissorsIcon className="h-5 w-5" /> },
                 { id: 'promotions', label: 'Promoções', icon: <TagIcon className="h-5 w-5" /> },
                 { id: 'gallery', label: 'Galeria', icon: <GalleryIcon className="h-5 w-5" /> },
-                { id: 'appointments', label: 'Agendamentos', icon: <CalendarIcon className="h-5 w-5" /> },
+                { id: 'appointments', label: 'Agenda', icon: <CalendarIcon className="h-5 w-5" /> },
                 { id: 'loyalty', label: 'Fidelidade', icon: <StarIcon className="h-5 w-5" /> }
               ].map(tab => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`w-full flex items-center text-left px-4 py-3 rounded-lg transition duration-200 ${
+                  className={`flex items-center px-4 py-3 rounded-lg transition duration-200 whitespace-nowrap flex-shrink-0 ${
                     activeTab === tab.id 
-                      ? 'bg-primary text-white' 
+                      ? 'bg-primary text-white shadow-md' 
                       : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
                   }`}
                 >
-                  <span className="mr-3">{tab.icon}</span>
-                  {tab.label}
+                  <span className="mr-2 sm:mr-3">{tab.icon}</span>
+                  <span className="text-sm sm:text-base">{tab.label}</span>
                 </button>
               ))}
             </nav>
           </div>
 
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             {isLoadingAppointments || isLoadingClients ? (
               <div className="flex justify-center items-center h-full">
                 <LoadingSpinner message="Carregando dados do painel..." />

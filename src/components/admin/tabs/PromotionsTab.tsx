@@ -66,17 +66,32 @@ export const PromotionsTab: React.FC<PromotionsTabProps> = ({
                     Até: {formatDate(endDate)}
                   </p>
                 </div>
-                <button
-                  onClick={async () => {
-                    if (confirm('Deletar promoção?')) {
-                      await PromotionService.delete(barberId, promo.id);
-                      onDataUpdate();
-                    }
-                  }}
-                  className="text-red-400 hover:text-red-300 text-sm"
-                >
-                  Excluir
-                </button>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => {
+                       // Normaliza dados para edição (compatibilidade com validUntil)
+                       onEdit('promotions', {
+                         ...promo,
+                         startDate: promo.startDate || '',
+                         endDate: promo.endDate || (promo as any).validUntil || ''
+                       });
+                    }}
+                    className="text-blue-400 hover:text-blue-300 text-sm font-medium"
+                  >
+                    Editar
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (confirm('Deletar promoção?')) {
+                        await PromotionService.delete(barberId, promo.id);
+                        onDataUpdate();
+                      }
+                    }}
+                    className="text-red-400 hover:text-red-300 text-sm font-medium"
+                  >
+                    Excluir
+                  </button>
+                </div>
               </div>
             </div>
           );
@@ -84,8 +99,10 @@ export const PromotionsTab: React.FC<PromotionsTabProps> = ({
       </div>
 
       {isEditing && (
-        <div className="bg-gray-800 rounded-lg p-6 mt-6">
-          <h3 className="text-xl font-bold mb-4">Nova Promoção</h3>
+        <div className="bg-gray-800 rounded-lg p-6 mt-6 border border-gray-600 shadow-xl">
+          <h3 className="text-xl font-bold mb-4 flex items-center">
+             {editData.id ? '✏️ Editar Promoção' : '➕ Nova Promoção'}
+          </h3>
           <div className="space-y-4">
             <input
               type="text"

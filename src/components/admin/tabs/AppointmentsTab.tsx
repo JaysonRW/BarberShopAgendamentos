@@ -56,24 +56,24 @@ export const AppointmentsTab: React.FC<AppointmentsTabProps> = ({
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h2 className="text-3xl font-bold">Agendamentos</h2>
-        <div className="flex space-x-2 bg-gray-700 p-1 rounded-lg">
+        <div className="flex w-full sm:w-auto space-x-2 bg-gray-700 p-1 rounded-lg overflow-x-auto">
           <button 
             onClick={() => setFilter('all')}
-            className={`px-3 py-1 rounded-md text-sm ${filter === 'all' ? 'bg-gray-600 text-white' : 'text-gray-400'}`}
+            className={`flex-1 sm:flex-none px-3 py-1 rounded-md text-sm whitespace-nowrap ${filter === 'all' ? 'bg-gray-600 text-white' : 'text-gray-400'}`}
           >
             Todos
           </button>
           <button 
             onClick={() => setFilter('today')}
-            className={`px-3 py-1 rounded-md text-sm ${filter === 'today' ? 'bg-gray-600 text-white' : 'text-gray-400'}`}
+            className={`flex-1 sm:flex-none px-3 py-1 rounded-md text-sm whitespace-nowrap ${filter === 'today' ? 'bg-gray-600 text-white' : 'text-gray-400'}`}
           >
             Hoje
           </button>
           <button 
             onClick={() => setFilter('pending')}
-            className={`px-3 py-1 rounded-md text-sm ${filter === 'pending' ? 'bg-gray-600 text-white' : 'text-gray-400'}`}
+            className={`flex-1 sm:flex-none px-3 py-1 rounded-md text-sm whitespace-nowrap ${filter === 'pending' ? 'bg-gray-600 text-white' : 'text-gray-400'}`}
           >
             Pendentes
           </button>

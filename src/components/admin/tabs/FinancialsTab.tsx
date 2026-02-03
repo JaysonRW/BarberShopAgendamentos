@@ -215,12 +215,12 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = ({ barberId, onDataUp
           </div>
           <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
               {filteredTransactions.length > 0 ? filteredTransactions.map(t => (
-                  <div key={t.id} className="flex justify-between items-center bg-gray-700/50 p-3 rounded-md">
-                      <div>
-                          <p className="font-bold text-white">{t.description}</p>
+                  <div key={t.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-gray-700/50 p-3 rounded-md gap-2">
+                      <div className="min-w-0 flex-1">
+                          <p className="font-bold text-white truncate">{t.description}</p>
                           <p className="text-xs text-gray-400">{new Date(t.date).toLocaleDateString('pt-BR', {timeZone: 'UTC'})} - {t.paymentMethod || t.category}</p>
                       </div>
-                      <p className={`font-bold text-lg whitespace-nowrap pl-4 ${t.type === 'receita' ? 'text-green-400' : 'text-red-400'}`}>
+                      <p className={`font-bold text-lg whitespace-nowrap ${t.type === 'receita' ? 'text-green-400' : 'text-red-400'}`}>
                           {t.type === 'receita' ? '+' : '-'} R$ {t.amount.toFixed(2)}
                       </p>
                   </div>
