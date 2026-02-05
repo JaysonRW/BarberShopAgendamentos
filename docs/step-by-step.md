@@ -1,28 +1,15 @@
 
-### [2026-02-03] - Refatoração Mobile-First
-**Objetivo**: Tornar o portal totalmente responsivo e otimizado para dispositivos móveis sem alterar a lógica de negócios.
+### [2026-02-05] - Atualização de Ícones (UX Admin)
+**Objetivo**: Melhorar a semântica visual dos botões do painel administrativo.
 
 #### Alterações Realizadas
-1.  **AdminPanel.tsx**:
-    - Substituída a barra lateral fixa por uma navegação horizontal com rolagem suave em dispositivos móveis.
-    - Ajustado o layout principal para `flex-col` em mobile e `flex-row` em desktop.
-    - Melhorado o espaçamento (padding) para telas pequenas.
+1.  **Ícone "Visual"**:
+    - Substituído o ícone genérico por um ícone de "Olho" (`VisualsIcon` atualizado), representando melhor a customização de aparência.
 
-2.  **ClientsTab.tsx**:
-    - Implementada "View Híbrida":
-        - **Mobile**: Exibe a lista de clientes em formato de Cards (Cartões), facilitando a leitura e ação.
-        - **Desktop**: Mantém a visualização em Tabela para aproveitar o espaço.
-    - Corrigido problema de tabela cortada em telas pequenas.
+2.  **Ícone "Financeiro"**:
+    - Criado novo componente `CurrencyIcon` (Cifrão).
+    - Substituído o ícone de gráfico de barras (`ChartBarIcon`) pelo ícone de cifrão na aba Financeiro, tornando a função mais intuitiva.
 
-3.  **AppointmentsTab.tsx**:
-    - Ajustado o grupo de botões de filtro (Todos/Hoje/Pendentes) para ser responsivo (scroll horizontal se necessário).
-    - Melhorado o layout dos cards de agendamento para empilhar informações verticalmente em mobile.
-
-4.  **FinancialsTab.tsx**:
-    - Ajustada a lista de transações para evitar quebra de texto em descrições longas (`truncate` e `min-w-0`).
-    - Layout flexível para os itens de transação.
-
-### Impacto
-- **Usabilidade Mobile**: Navegação fluida e elementos visuais adequados para toque em telas pequenas.
-- **Leiturabilidade**: Eliminação de rolagem horizontal excessiva e textos cortados.
-- **Consistência**: Experiência de usuário unificada entre desktop e mobile.
+#### Arquivos Afetados
+- `src/components/common/Icons.tsx`: Adição de `CurrencyIcon` e atualização de `VisualsIcon`.
+- `src/components/admin/AdminPanel.tsx`: Atualização da importação e uso do ícone na lista de abas.

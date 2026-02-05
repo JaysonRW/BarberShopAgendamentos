@@ -13,6 +13,7 @@ import { Promotions } from './components/features/Promotions';
 import { ServicesList } from './components/features/ServicesList';
 import { Gallery } from './components/features/Gallery';
 import { BookingForm } from './components/features/BookingForm';
+import { LocationMap } from './components/common/LocationMap';
 import { LoginModal } from './components/auth/LoginModal';
 import { UnauthorizedAccess } from './components/auth/UnauthorizedAccess';
 import { AdminPanel } from './components/admin/AdminPanel';
@@ -217,8 +218,10 @@ const App: React.FC = () => {
         }}
       />
       
+      <LocationMap address={barberData.profile.location} />
+      
       <Footer 
-        shopName={barberData.profile.shopName} 
+        shopName={barberData.profile.shopName}  
         location={barberData.profile.location} 
       />
 

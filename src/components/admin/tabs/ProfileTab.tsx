@@ -100,6 +100,7 @@ const ProfileTab: React.FC<ProfileTabProps> = ({
                 onChange={(e) => onEditDataChange({...editData, shopName: e.target.value})}
                 className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
               />
+              <p className="text-xs text-gray-400 mt-1">Para o mapa funcionar corretamente, insira o endereço completo (Rua, Número, Bairro, Cidade - UF).</p>
             </div>
             
             <div>
